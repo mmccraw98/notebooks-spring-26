@@ -8,23 +8,23 @@ import h5py
 
 from resources import *
 from routines import run_nvt_compression
-from config import default_config
+from config import default_config, config2
 from file_management import make_data_dir, save_arrs
 
 from jaxdem.utils.randomSphereConfiguration import random_sphere_configuration
 
 
 if __name__ == "__main__":
-    data_root = '/home/mmccraw/dev/data/26-01-01/grant/sphere-fragilitiy/dynamics'
+    data_root = '/home/mmccraw/dev/data/26-01-01/grant/sphere-fragilitiy/dynamics-2'
 
     particle_radii = []
-    for _ in range(default_config.target_temperatures.size):
-        particle_radii.append(jd.utils.dispersity.get_polydisperse_radii(default_config.N))
-    pos, box_size = random_sphere_configuration(particle_radii, default_config.phi, default_config.dim)
+    for _ in range(config2.target_temperatures.size):
+        particle_radii.append(jd.utils.dispersity.get_polydisperse_radii(config2.N))
+    pos, box_size = random_sphere_configuration(particle_radii, config2.phi, config2.dim)
 
     states, systems = [], []
-    for p, rad, bs in zip(pos, particle_radii, box_size):
-        state, system = create(p, rad, bs, default_config.e_int, default_config.dt)
+    for p, rad, bs, dt in zip(pos, particle_radii, box_size, config2.dt):
+        state, system = create(p, rad, bs, config2.e_int, dt)
         states.append(state)
         systems.append(system)
     state = jd.State.stack(states)
@@ -32,15 +32,15 @@ if __name__ == "__main__":
 
     key = jax.random.PRNGKey(np.random.randint(0, 1e9))
     state.vel = jax.random.normal(key, state.vel.shape)
-    state = scale_temps(state, default_config.target_temperatures)
+    state = scale_temps(state, config2.target_temperatures)
 
     # run thermalization without compressing the states
     state, system = run_nvt_compression(
         state,
         system,
         0.0,  # do not compress on the first run
-        default_config.target_temperatures,
-        n_steps=default_config.n_dynamics_steps // 10,
+        config2.target_temperatures,
+        n_steps=config2.n_dynamics_steps // 10,
         nve_block_length=1_000
     )
 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     
     # run dynamics
     print('Running dynamics...')
-    save_stride = 100
+    save_stride = 500
     n_snapshots = default_config.n_dynamics_steps // save_stride
     state, system, (state_traj, system_traj) = system.trajectory_rollout(
         state, system, n=n_snapshots, stride=save_stride

@@ -167,3 +167,5 @@ secrets.json
 # Large clustering artifacts
 11/generate-clusters/*.npy
 
+*.gz
+*.pb

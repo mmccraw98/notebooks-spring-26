@@ -9,13 +9,8 @@ import sys
 
 from resources import *
 from routines import run_nvt_compression
-from config import default_config
+from config import default_config, config2
 from file_management import make_data_dir, save_arrs
-
-# on all other iterations:
-# run thermalization NVT to compress for N steps
-# run thermalization NVT for N steps
-# run equilibration NVE for 10 * N steps
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -32,9 +27,9 @@ if __name__ == "__main__":
     state, system = run_nvt_compression(
         state,
         system,
-        default_config.delta_phi,
-        default_config.target_temperatures,
-        n_steps=default_config.n_dynamics_steps // 10,
+        config2.delta_phi,
+        config2.target_temperatures,
+        n_steps=config2.n_dynamics_steps // 10,
         nve_block_length=1_000
     )
 
@@ -47,8 +42,8 @@ if __name__ == "__main__":
     
     # run dynamics
     print('Running dynamics...')
-    save_stride = 100
-    n_snapshots = default_config.n_dynamics_steps // save_stride
+    save_stride = 500
+    n_snapshots = config2.n_dynamics_steps // save_stride
     state, system, (state_traj, system_traj) = system.trajectory_rollout(
         state, system, n=n_snapshots, stride=save_stride
     )
@@ -62,6 +57,6 @@ if __name__ == "__main__":
     jd.utils.h5.save(system, os.path.join(run_root_paths['final'], 'system.h5'))
 
     # run another step if the packing fraction is less than the target
-    if phi[0] < default_config.phi_target:
+    if phi[0] < config2.phi_target:
         script = os.path.abspath(__file__)
         os.execv(sys.executable, [sys.executable, script, "--input_path", run_root])

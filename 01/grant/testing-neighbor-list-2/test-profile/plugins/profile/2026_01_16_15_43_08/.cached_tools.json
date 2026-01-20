@@ -1,0 +1,19 @@
+{
+  "files": {
+    "tensor.xplane.pb": "1768596188-5729961"
+  },
+  "tools": [
+    "overview_page",
+    "trace_viewer@",
+    "graph_viewer",
+    "op_profile",
+    "input_pipeline_analyzer",
+    "kernel_stats",
+    "memory_profile",
+    "memory_viewer",
+    "roofline_model",
+    "framework_op_stats",
+    "hlo_stats"
+  ],
+  "version": 1
+}
