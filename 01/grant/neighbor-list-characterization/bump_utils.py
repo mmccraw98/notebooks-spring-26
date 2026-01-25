@@ -63,13 +63,68 @@ def get_closest_vertex_radius_for_mu_eff(mu_eff, outer_radius, num_vertices):
         result = minimize_scalar(obj_squared, bounds=(min_vertex_radius, max_vertex_radius), method='bounded')
         return result.x if result.success else np.nan
 
-def create_clumps(phi, N, mu_eff, aspect_ratio, min_nv, mass, skin):
+def create_clumps(phi, N, mu_eff, aspect_ratio, min_nv, mass, skin, max_neighbors = None):
     dim = 2
     particle_radii = jd.utils.dispersity.get_polydisperse_radii(N)
     asperity_radius = get_closest_vertex_radius_for_mu_eff(mu_eff, min(particle_radii), min_nv)
     max_nv, max_mu_eff, err = find_num_vertices_for_target_mu_eff(mu_eff, asperity_radius, max(particle_radii))
     vertex_counts = np.ones_like(particle_radii).astype(int) * min_nv
     vertex_counts[particle_radii == max(particle_radii)] = max_nv
+
+    state, box_size = generate_ga_clump_state(
+        particle_radii,
+        vertex_counts,
+        phi,
+        dim,
+        asperity_radius,
+        aspect_ratio=aspect_ratio,
+        use_uniform_mesh=True,
+        add_core=False,
+        mass=mass,
+        seed=1,
+    )
+
+    e_int = 1.0
+    dt = 1e-2
+
+    mats = [jd.Material.create("elastic", young=e_int, poisson=0.5, density=1.0)]
+    matcher = jd.MaterialMatchmaker.create("harmonic")
+    mat_table = jd.MaterialTable.from_materials(mats, matcher=matcher)
+
+    cutoff = 2.0 * jnp.max(state.rad)
+    cell_size = cutoff * (1 + skin)
+    min_axis_length = jnp.min(box_size)
+    grid_dim = jnp.floor(min_axis_length / cell_size)
+    cell_size = min_axis_length / grid_dim
+
+    system = jd.System.create(
+        state_shape=state.shape,
+        dt=dt,
+        linear_integrator_type="verlet",
+        rotation_integrator_type="verletspiral",
+        domain_type="periodic",
+        force_model_type="spring",
+        # collider_type="naive",
+        collider_type="neighborlist",
+        collider_kw=dict(
+            state=state,
+            cutoff=cutoff,
+            skin=skin,
+            cell_size=cell_size,
+            max_neighbors=max_neighbors,
+        ),
+        mat_table=mat_table,
+        domain_kw=dict(
+            box_size=box_size,
+        ),
+    )
+    return state, system
+
+
+def create_clumps_3d(phi, N, asperity_radius, aspect_ratio, min_nv, mass, skin, max_neighbors = None):
+    dim = 3
+    particle_radii = jd.utils.dispersity.get_polydisperse_radii(N, [1.0], [1.0])
+    vertex_counts = np.ones_like(particle_radii).astype(int) * min_nv
 
     state, box_size = generate_ga_clump_state(
         particle_radii,
@@ -90,6 +145,12 @@ def create_clumps(phi, N, mu_eff, aspect_ratio, min_nv, mass, skin):
     matcher = jd.MaterialMatchmaker.create("harmonic")
     mat_table = jd.MaterialTable.from_materials(mats, matcher=matcher)
 
+    cutoff = 2.0 * jnp.max(state.rad)
+    cell_size = cutoff * (1 + skin)
+    min_axis_length = jnp.min(box_size)
+    grid_dim = jnp.floor(min_axis_length / cell_size)
+    cell_size = min_axis_length / grid_dim
+
     system = jd.System.create(
         state_shape=state.shape,
         dt=dt,
@@ -101,8 +162,10 @@ def create_clumps(phi, N, mu_eff, aspect_ratio, min_nv, mass, skin):
         collider_type="neighborlist",
         collider_kw=dict(
             state=state,
-            cutoff=2.0 * jnp.max(state.rad),
+            cutoff=cutoff,
             skin=skin,
+            cell_size=cell_size,
+            max_neighbors=max_neighbors,
         ),
         mat_table=mat_table,
         domain_kw=dict(
@@ -111,65 +174,6 @@ def create_clumps(phi, N, mu_eff, aspect_ratio, min_nv, mass, skin):
     )
     return state, system
 
-def create_dps(phi, N, mu_eff, aspect_ratio, min_nv, em, eb, ec, mass):
-    dim = 2
-
-    particle_radii = jd.utils.dispersity.get_polydisperse_radii(N)
-    asperity_radius = get_closest_vertex_radius_for_mu_eff(
-        mu_eff, float(np.min(particle_radii)), min_nv
-    )
-    max_nv, max_mu_eff, err = find_num_vertices_for_target_mu_eff(
-        mu_eff, asperity_radius, float(np.max(particle_radii))
-    )
-
-    vertex_counts = np.ones_like(particle_radii).astype(int) * int(min_nv)
-    vertex_counts[particle_radii == np.max(particle_radii)] = int(max_nv)
-
-    state, dp_container, box_size = generate_ga_deformable_state(
-        particle_radii=jnp.asarray(particle_radii),
-        vertex_counts=jnp.asarray(vertex_counts),
-        phi=float(phi),
-        dim=int(dim),
-        asperity_radius=float(asperity_radius),
-        aspect_ratio=float(aspect_ratio),
-        use_uniform_mesh=True,
-        add_core=False,
-        em=em,
-        eb=eb,
-        ec=ec,
-        mass=mass
-    )
-
-    e_int = 1.0
-    dt = 1e-2
-
-    mats = [jd.Material.create("elastic", young=e_int, poisson=0.5, density=1.0)]
-    matcher = jd.MaterialMatchmaker.create("harmonic")
-    mat_table = jd.MaterialTable.from_materials(mats, matcher=matcher)
-
-    system = jd.System.create(
-        state_shape=state.shape,
-        dt=dt,
-        linear_integrator_type="verlet",
-        rotation_integrator_type="",
-        domain_type="periodic",
-        force_model_type="spring",
-        # collider_type="naive",
-        collider_type="neighborlist",
-        collider_kw=dict(
-            state=state,
-            cutoff=2.0 * jnp.max(state.rad),
-            skin=0.03,
-        ),
-        mat_table=mat_table,
-        domain_kw=dict(
-            box_size=jnp.asarray(box_size, dtype=float),
-        ),
-        force_manager_kw=dict(
-            force_functions=(dp_container.create_force_function(dp_container),),
-        ),
-    )
-    return state, system
 
 def render(state, system, path, id_name='clump_ID'):
     import subprocess
