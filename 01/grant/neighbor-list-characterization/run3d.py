@@ -7,22 +7,30 @@ import os
 from bump_utils import create_clumps_3d, animate
 import time
 import json
+import shutil
 
 
 if __name__ == "__main__":
     
     max_neighbors = 500
 
-    N = 10
+    # N = 10  # this gives trouble with rad=0.499
+    N = 100
 
     data_root = '/home/mmccraw/dev/data/26-01-01/grant/neighbor-list-characterization-3d/dynamics-1'
-    for asperity_rad in [0.499, 0.4, 0.2][::-1]:
+
+    if os.path.exists(data_root):
+        shutil.rmtree(data_root)
+    os.makedirs(data_root)
+
+    for asperity_rad in [0.499, 0.4, 0.2]:
         for skin in [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0]:
             run_root = os.path.join(data_root, f'rad-{asperity_rad}-skin-{skin}')
             if not os.path.exists(run_root):
                 os.makedirs(run_root)
             state, system = create_clumps_3d(0.5, N, asperity_rad, 1.0, 20, 1.0, skin, max_neighbors)
             state = jd.utils.thermal.set_temperature(state, 1e-4, is_rigid=True, subtract_drift=True)
+            print(jnp.floor(system.domain.box_size / system.collider.cell_list.cell_size).astype(int))
 
             print('Running dynamics...')
             n_steps = 10_000

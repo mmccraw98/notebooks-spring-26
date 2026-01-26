@@ -111,6 +111,7 @@ def create_clumps(phi, N, mu_eff, aspect_ratio, min_nv, mass, skin):
             cutoff=cutoff,
             skin=skin,
             cell_size=cell_size,
+            box_size=box_size,
             max_neighbors=20,
         ),
         mat_table=mat_table,

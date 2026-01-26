@@ -24,7 +24,6 @@ def assert_uniform_per_clump(x, clump_ID, num_clumps, tol=0.0):
 if __name__ == "__main__":
     root = '/home/mmccraw/dev/data/26-01-01/grant/validate-thermal'
     data_root = os.path.join(root, 'initial-data')
-    save_root = os.path.join(root, 'validate-data')
 
     target_temperature_1 = 1e-4
     target_temperature_2 = 1e-5

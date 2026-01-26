@@ -11,8 +11,8 @@ import shutil
 
 if __name__ == "__main__":
     
-    N = 10
-    max_neighbors = 200
+    N = 100
+    max_neighbors = 500
 
     data_root = '/home/mmccraw/dev/data/26-01-01/grant/neighbor-list-characterization/dynamics-20'
 
@@ -31,7 +31,7 @@ if __name__ == "__main__":
                 os.makedirs(run_root)
 
             state, system = create_clumps(0.8, N, mu, 1.0, 10, 1.0, skin, max_neighbors)
-            state = jd.utils.thermal.set_temperature(state, 1e-3, is_rigid=True, subtract_drift=True, seed=1)
+            state = jd.utils.thermal.set_temperature(state, 1e-4, is_rigid=True, subtract_drift=True, seed=1)
 
             print('Running dynamics...')
             n_steps = 10_000

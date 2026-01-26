@@ -102,6 +102,7 @@ def create_clumps(phi, N, mu_eff, aspect_ratio, min_nv, mass, cutoff_multiple):
         collider_type="celllist",
         collider_kw=dict(
             state=state,
+            # box_size=box_size,
             cell_size=cutoff_multiple * 2.0 * jnp.max(state.rad),
         ),
         mat_table=mat_table,
@@ -112,7 +113,7 @@ def create_clumps(phi, N, mu_eff, aspect_ratio, min_nv, mass, cutoff_multiple):
     return state, system
 
 
-def create_clumps_3d(phi, N, asperity_radius, aspect_ratio, min_nv, mass, skin, max_neighbors = None):
+def create_clumps_3d(phi, N, asperity_radius, aspect_ratio, min_nv, mass, cutoff_multiple):
     dim = 3
     particle_radii = jd.utils.dispersity.get_polydisperse_radii(N, [1.0], [1.0])
     vertex_counts = np.ones_like(particle_radii).astype(int) * min_nv
@@ -151,14 +152,11 @@ def create_clumps_3d(phi, N, asperity_radius, aspect_ratio, min_nv, mass, skin, 
         domain_type="periodic",
         force_model_type="spring",
         # collider_type="naive",
-        collider_type="neighborlist",
+        collider_type="celllist",
         collider_kw=dict(
             state=state,
-            cutoff=cutoff,
-            skin=skin,
-            max_neighbors=max_neighbors,
-            # max_neighbors=None,
-            # number_density=number_density,
+            box_size=box_size,
+            cell_size=cutoff_multiple * 2.0 * jnp.max(state.rad),
         ),
         mat_table=mat_table,
         domain_kw=dict(
