@@ -1,0 +1,11 @@
+can we approximate a solid disk with interior point masses?
+
+create custom rollout with pseudo-log scale saving scheme
+
+create custom rollout with saving custom data
+
+check energy conservation when changing box size
+
+why is it so slow to make particles
+
+address weird cell list case (rad=0.499, dim=3, N=10)
