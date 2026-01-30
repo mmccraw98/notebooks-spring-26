@@ -47,11 +47,14 @@ def get_relaxation_time(f, t):
         return np.nan
     return tau
 
-which = '2d-2'
+which = '2d-wca'
+
 if which == '2d':
     from config import config2d as cfg
 elif which == '2d-2':
     from config import config2d_2 as cfg
+elif which == '2d-wca':
+    from config import config2d_wca as cfg
 elif which == '3d':
     from config import config3d as cfg
 else:
@@ -79,7 +82,7 @@ for phi_dir in tqdm(os.listdir(root)):
     pos = traj['pos']
     T = pos.shape[0]
 
-    bins = LagBinsPseudoLog(T, dt_min=1, dt_max=T-1)  # pseudo-log lags
+    bins = LagBinsPseudoLog(T, dt_min=1, dt_max=T-1)  # pseudo-log lags using time-indices
     k = 2.0 * jnp.pi / (2 * jnp.min(state.rad[0]))
     temp = cfg.target_temperatures
 
@@ -115,7 +118,7 @@ for phi_dir in tqdm(os.listdir(root)):
     plt.xscale('log')
     if not os.path.exists(f'figures/isf/{which}'):
         os.makedirs(f'figures/isf/{which}')
-    plt.savefig(f'figures/isf/{which}isf-{phi}.png')
+    plt.savefig(f'figures/isf/{which}/isf-{phi}.png')
     plt.close()
 
 phis_hist = np.array(phis_hist)

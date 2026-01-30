@@ -9,22 +9,28 @@ from file_management import make_data_dir, save_arrs
 from jaxdem.utils.randomSphereConfiguration import random_sphere_configuration
 from jaxdem.utils.dynamicsRoutines import control_nvt_density
 
-def create(pos, rad, box_size, e_int, dt):
+def create(pos, rad, box_size, e_int, dt, force_model_type):
     state = jd.State.create(
         pos=pos,
         rad=rad,
         mass=jnp.ones(pos.shape[0])
     )
-    mats = [jd.Material.create("elastic", young=e_int, poisson=0.5, density=1.0)]
+    if force_model_type == 'spring':
+        mats = [jd.Material.create("elastic", young=e_int, poisson=0.5, density=1.0)]
+    elif force_model_type == 'wca':
+        mats = [jd.Material.create("lj", epsilon=1.0, density=1.0)]
+    else:
+        raise ValueError(f'force_model_type {force_model_type} unknown')
     matcher = jd.MaterialMatchmaker.create("harmonic")
     mat_table = jd.MaterialTable.from_materials(mats, matcher=matcher)
+
     system = jd.System.create(
         state_shape=state.shape,
         dt=dt,
         linear_integrator_type="verlet",
         rotation_integrator_type="",
         domain_type="periodic",
-        force_model_type="spring",
+        force_model_type=force_model_type,
         collider_type="naive",
         # collider_type="neighborlist",
         # collider_kw=dict(
@@ -39,7 +45,7 @@ def create(pos, rad, box_size, e_int, dt):
     return state, system
 
 if __name__ == "__main__":
-    which = '2d-2'
+    which = '2d-wca'
 
     data_root = f'/home/mmccraw/dev/data/26-01-01/grant/sphere-fragilitiy/version-2/{which}'
     if not os.path.exists(data_root):
@@ -49,6 +55,8 @@ if __name__ == "__main__":
         from config import config2d as cfg
     elif which == '2d-2':
         from config import config2d_2 as cfg
+    elif which == '2d-wca':
+        from config import config2d_wca as cfg
     elif which == '3d':
         from config import config3d as cfg
     else:
@@ -60,7 +68,7 @@ if __name__ == "__main__":
         seed = np.random.randint(0, 1e9)
         particle_radii = jd.utils.dispersity.get_polydisperse_radii(cfg.N)
         pos, box_size = random_sphere_configuration(particle_radii, cfg.phi, cfg.dim)
-        state, system = create(pos, particle_radii, box_size, cfg.e_int, cfg.dt[i])
+        state, system = create(pos, particle_radii, box_size, cfg.e_int, cfg.dt[i], cfg.force_model_type)
         state = jd.utils.thermal.set_temperature(state, cfg.target_temperatures[i], can_rotate=False, subtract_drift=True, seed=seed)
         states.append(state)
         systems.append(system)

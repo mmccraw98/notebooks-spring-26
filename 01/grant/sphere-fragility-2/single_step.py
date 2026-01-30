@@ -24,6 +24,8 @@ if __name__ == "__main__":
         from config import config2d as cfg
     elif which == '2d-2':
         from config import config2d_2 as cfg
+    elif which == '2d-wca':
+        from config import config2d_wca as cfg
     elif which == '3d':
         from config import config3d as cfg
     else:
