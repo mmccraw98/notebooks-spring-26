@@ -108,7 +108,7 @@ def test_spheres(phi=0.7, N=100, mass=1.0, target_temperature=1e-4, e_int=1.0,
 
     def create_state():
         state = jd.State.create(pos=pos.copy(), rad=radii.copy(), mass=jnp.ones(N) * mass)
-        state = jd.utils.thermal.set_temperature(state, target_temperature, is_rigid=False, subtract_drift=True)
+        state = jd.utils.thermal.set_temperature(state, target_temperature, can_rotate=False, subtract_drift=True)
         return state, box_size
 
     def compute_ke(state_traj):
@@ -128,11 +128,11 @@ def test_clumps(phi=0.7, N=100, Nv=10, mass=1.0, target_temperature=1e-4, e_int=
     asperity_radius = 0.15 if dim == 2 else 0.3
     radii = jd.utils.dispersity.get_polydisperse_radii(N, count_ratios=[1.0], size_ratios=[1.0])
     vertex_counts = jnp.ones_like(radii) * Nv
-    base_state, box_size = generate_ga_clump_state(radii, vertex_counts, phi, dim, asperity_radius, add_core=False, mass=mass)
+    base_state, box_size = generate_ga_clump_state(radii, vertex_counts, phi, dim, asperity_radius, core_type=None, mass=mass)
 
     def create_state():
         state = jax.tree.map(lambda x: x, base_state)
-        state = jd.utils.thermal.set_temperature(state, target_temperature, is_rigid=True, subtract_drift=True)
+        state = jd.utils.thermal.set_temperature(state, target_temperature, can_rotate=True, subtract_drift=True)
         return state, box_size
 
     def compute_ke(state_traj):
@@ -154,12 +154,12 @@ def test_dps(phi=0.7, N=100, Nv=10, mass=1.0, target_temperature=1e-4, e_int=1.0
     radii = jd.utils.dispersity.get_polydisperse_radii(N, count_ratios=[1.0], size_ratios=[1.0])
     vertex_counts = jnp.ones_like(radii) * Nv
     base_state, dp, box_size = generate_ga_deformable_state(radii, vertex_counts, phi, dim, asperity_radius,
-                                                            add_core=False, em=e_m, eb=e_b, ec=e_c, mass=mass)
+                                                            core_type=None, em=e_m, eb=e_b, ec=e_c, mass=mass)
     force_manager_kw = dict(force_functions=(dp.create_force_function(dp),))
 
     def create_state():
         state = jax.tree.map(lambda x: x, base_state)
-        state = jd.utils.thermal.set_temperature(state, target_temperature, is_rigid=True, subtract_drift=True)
+        state = jd.utils.thermal.set_temperature(state, target_temperature, can_rotate=True, subtract_drift=True)
         return state, box_size
 
     def compute_ke(state_traj):

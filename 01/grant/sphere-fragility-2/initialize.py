@@ -39,7 +39,7 @@ def create(pos, rad, box_size, e_int, dt):
     return state, system
 
 if __name__ == "__main__":
-    which = '2d'
+    which = '2d-2'
 
     data_root = f'/home/mmccraw/dev/data/26-01-01/grant/sphere-fragilitiy/version-2/{which}'
     if not os.path.exists(data_root):
@@ -47,6 +47,8 @@ if __name__ == "__main__":
 
     if which == '2d':
         from config import config2d as cfg
+    elif which == '2d-2':
+        from config import config2d_2 as cfg
     elif which == '3d':
         from config import config3d as cfg
     else:

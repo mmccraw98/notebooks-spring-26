@@ -22,6 +22,8 @@ if __name__ == "__main__":
 
     if which == '2d':
         from config import config2d as cfg
+    elif which == '2d-2':
+        from config import config2d_2 as cfg
     elif which == '3d':
         from config import config3d as cfg
     else:
@@ -54,7 +56,7 @@ if __name__ == "__main__":
     
     # run dynamics
     print('Running dynamics...')
-    save_stride = 500
+    save_stride = cfg.save_stride
     n_snapshots = cfg.n_dynamics_steps // save_stride
     state, system, (state_traj, system_traj) = system.trajectory_rollout(
         state, system, n=n_snapshots, stride=save_stride

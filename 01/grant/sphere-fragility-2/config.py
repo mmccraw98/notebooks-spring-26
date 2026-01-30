@@ -17,6 +17,7 @@ class Config:
     target_temperatures: np.ndarray = field(
         default_factory=lambda: np.logspace(-5, -2, 10)
     )
+    save_stride: int = 500
 
 dt_base = 1e-2
 T_min = 1e-5
@@ -26,5 +27,7 @@ T = np.logspace(np.log10(T_min), np.log10(T_max), n_systems)
 dt = dt_base * np.sqrt(T_min / T)
 
 config2d = Config(target_temperatures=T, dt=dt)
+
+config2d_2 = Config(target_temperatures=np.array([1e-2, 5e-2]), dt=np.array([1e-2, 3.33e-2]), n_dynamics_steps=1_000_000, phi=0.7, save_stride=50)
 
 config3d = Config(target_temperatures=T, dt=dt, dim=3, phi=0.4)
