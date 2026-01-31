@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     n_repeats = 100
     phi = 0.5
-    N = 10
+    N = 100
 
     which = f'mu-{mu}-alpha-{alpha}-nv-{nv}'
     for run_id in range(n_repeats):
@@ -42,9 +42,14 @@ if __name__ == "__main__":
             mass=1.0,
         )
 
-        state, system = bisection_jam(
+        state, system, _, _ = bisection_jam(
             state,
             system,
+            pe_tol=1e-16,
+            pe_diff_tol=1e-16,
+            # f_tol=1e-12,
+            # f_diff_tol=1e-12,
+            # packing_fraction_increment=1e-4,
         )
 
         jd.utils.h5.save(state, os.path.join(data_root, 'state.h5'))

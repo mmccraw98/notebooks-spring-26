@@ -90,19 +90,33 @@ def create_ga_2d(phi, N, mu_eff, aspect_ratio, min_nv, mass):
     matcher = jd.MaterialMatchmaker.create("harmonic")
     mat_table = jd.MaterialTable.from_materials(mats, matcher=matcher)
 
+    phi_vertex = jnp.sum(state.rad ** 2 * jnp.pi) / jnp.prod(box_size)
+    skin = 1e-1 / phi_vertex
+    print(skin)
+
     system = jd.System.create(
         state_shape=state.shape,
         dt=dt,
-        linear_integrator_type="verlet",
+        linear_integrator_type="linearfire",
+        # rotation_integrator_type="rotationfire",
         rotation_integrator_type="verletspiral",
+        # rotation_integrator_type="rotationgradientdescent",
+        # rotation_integrator_kw=dict(learning_rate=1e-1),
+        # rotation_integrator_type="",
         domain_type="periodic",
         force_model_type="spring",
         # collider_type="naive",
+        # collider_type="staticcelllist",
+        # collider_kw=dict(
+        #     state=state,
+        # ),
         collider_type="neighborlist",
         collider_kw=dict(
             state=state,
             cutoff=2.0 * jnp.max(state.rad),
-            skin=0.03,
+            skin=0.05,
+            # skin=skin,
+            safety_factor=5.0,
         ),
         mat_table=mat_table,
         domain_kw=dict(
