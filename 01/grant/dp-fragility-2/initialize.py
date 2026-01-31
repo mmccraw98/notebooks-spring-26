@@ -11,7 +11,7 @@ from jaxdem.utils.dynamicsRoutines import control_nvt_density
 
 
 if __name__ == "__main__":
-    which = '2d-hard'
+    which = '2d-soft'
 
     data_root = f'/Users/marshallmccraw/Projects/yale/data/s-26/grant/dp-fragility/{which}'
     if not os.path.exists(data_root):
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     print('Done')
 
     # save the trajectory
-    save_arrs([state_traj.pos, state_traj.vel], ['pos', 'vel'], os.path.join(run_root_paths['traj'], 'data.h5'))
+    save_arrs([state_traj.pos, state_traj.vel, state_traj.unique_ID], ['pos', 'vel', 'unique_ID'], os.path.join(run_root_paths['traj'], 'data.h5'))
 
     # save the final state
     jd.utils.h5.save(state, os.path.join(run_root_paths['final'], 'state.h5'))

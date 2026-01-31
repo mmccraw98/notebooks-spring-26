@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax
 jax.config.update("jax_enable_x64", True)
 import jaxdem as jd
-from jaxdem.utils.geometricAsperityCreation import generate_ga_deformable_state
+from jaxdem.utils.geometricAsperityCreation import generate_ga_clump_state
 
 def calc_mu_eff(vertex_radius, outer_radius, num_vertices):
     return 1 / np.sqrt(((2 * vertex_radius) / ((outer_radius - vertex_radius) * np.sin(np.pi / num_vertices))) ** 2 - 1)
@@ -63,7 +63,7 @@ def get_closest_vertex_radius_for_mu_eff(mu_eff, outer_radius, num_vertices):
         result = minimize_scalar(obj_squared, bounds=(min_vertex_radius, max_vertex_radius), method='bounded')
         return result.x if result.success else np.nan
 
-def create_dps_2d(phi, N, mu_eff, aspect_ratio, min_nv, mass, eb, el, ec):
+def create_ga_2d(phi, N, mu_eff, aspect_ratio, min_nv, mass):
     dim = 2
     particle_radii = jd.utils.dispersity.get_polydisperse_radii(N)
     asperity_radius = get_closest_vertex_radius_for_mu_eff(mu_eff, min(particle_radii), min_nv)
@@ -71,7 +71,7 @@ def create_dps_2d(phi, N, mu_eff, aspect_ratio, min_nv, mass, eb, el, ec):
     vertex_counts = np.ones_like(particle_radii).astype(int) * min_nv
     vertex_counts[particle_radii == max(particle_radii)] = max_nv
 
-    state, dp, box_size = generate_ga_deformable_state(
+    state, box_size = generate_ga_clump_state(
         particle_radii,
         vertex_counts,
         phi,
@@ -81,10 +81,6 @@ def create_dps_2d(phi, N, mu_eff, aspect_ratio, min_nv, mass, eb, el, ec):
         use_uniform_mesh=True,
         mass=mass,
         seed=np.random.randint(0, 1e9),
-        ec=ec,
-        eb=eb,
-        el=el,
-        em=None
     )
 
     e_int = 1.0
@@ -94,13 +90,11 @@ def create_dps_2d(phi, N, mu_eff, aspect_ratio, min_nv, mass, eb, el, ec):
     matcher = jd.MaterialMatchmaker.create("harmonic")
     mat_table = jd.MaterialTable.from_materials(mats, matcher=matcher)
 
-    dp_force, dp_energy = dp.create_force_energy_functions(dp)
-
     system = jd.System.create(
         state_shape=state.shape,
         dt=dt,
         linear_integrator_type="verlet",
-        rotation_integrator_type="",
+        rotation_integrator_type="verletspiral",
         domain_type="periodic",
         force_model_type="spring",
         # collider_type="naive",
@@ -114,21 +108,16 @@ def create_dps_2d(phi, N, mu_eff, aspect_ratio, min_nv, mass, eb, el, ec):
         domain_kw=dict(
             box_size=box_size,
         ),
-        force_manager_kw=dict(
-            force_functions=(
-                (dp_force, dp_energy),
-            ),
-        ),
     )
-    return state, system, dp
+    return state, system
 
 
-def create_dps_3d(phi, N, asperity_radius, aspect_ratio, min_nv, mass, eb, el, ec, em):
+def create_ga_3d(phi, N, asperity_radius, aspect_ratio, min_nv, mass):
     dim = 3
     particle_radii = jd.utils.dispersity.get_polydisperse_radii(N, [1.0], [1.0])
     vertex_counts = np.ones_like(particle_radii).astype(int) * min_nv
 
-    state, dp, box_size = generate_ga_deformable_state(
+    state, box_size = generate_ga_clump_state(
         particle_radii,
         vertex_counts,
         phi,
@@ -138,10 +127,6 @@ def create_dps_3d(phi, N, asperity_radius, aspect_ratio, min_nv, mass, eb, el, e
         use_uniform_mesh=True,
         mass=mass,
         seed=np.random.randint(0, 1e9),
-        eb=eb,
-        el=el,
-        ec=ec,
-        em=em,
     )
 
     e_int = 1.0
@@ -151,8 +136,6 @@ def create_dps_3d(phi, N, asperity_radius, aspect_ratio, min_nv, mass, eb, el, e
     matcher = jd.MaterialMatchmaker.create("harmonic")
     mat_table = jd.MaterialTable.from_materials(mats, matcher=matcher)
 
-    dp_force, dp_energy = dp.create_force_energy_functions(dp)
-
     cutoff = 2.0 * jnp.max(state.rad)
     number_density = state.N / jnp.prod(box_size)
 
@@ -160,7 +143,7 @@ def create_dps_3d(phi, N, asperity_radius, aspect_ratio, min_nv, mass, eb, el, e
         state_shape=state.shape,
         dt=dt,
         linear_integrator_type="verlet",
-        rotation_integrator_type="",
+        rotation_integrator_type="verletspiral",
         domain_type="periodic",
         force_model_type="spring",
         collider_type="neighborlist",
@@ -173,13 +156,8 @@ def create_dps_3d(phi, N, asperity_radius, aspect_ratio, min_nv, mass, eb, el, e
         domain_kw=dict(
             box_size=box_size,
         ),
-        force_manager_kw=dict(
-            force_functions=(
-                (dp_force, dp_energy),
-            ),
-        ),
     )
-    return state, system, dp
+    return state, system
 
 
 def render(state, system, path, id_name='clump_ID'):

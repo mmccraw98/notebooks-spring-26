@@ -14,7 +14,7 @@ if __name__ == "__main__":
     parser.add_argument('--input_path', type=str, required=True)
     args = parser.parse_args()
 
-    # load the initial data from the previous run
+    # load the final data from the previous run
     input_path = args.input_path.rstrip('/')
     data_root = os.path.dirname(input_path)
     state = jd.utils.h5.load(os.path.join(input_path, 'final', 'state.h5'))
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     print('Done')
 
     # save the trajectory
-    save_arrs([state_traj.pos, state_traj.vel], ['pos', 'vel'], os.path.join(run_root_paths['traj'], 'data.h5'))
+    save_arrs([state_traj.pos, state_traj.vel, state_traj.unique_ID], ['pos', 'vel', 'unique_ID'], os.path.join(run_root_paths['traj'], 'data.h5'))
 
     # save the final state
     jd.utils.h5.save(state, os.path.join(run_root_paths['final'], 'state.h5'))

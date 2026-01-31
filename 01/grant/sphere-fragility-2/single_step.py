@@ -13,11 +13,11 @@ if __name__ == "__main__":
     parser.add_argument('--input_path', type=str, required=True)
     args = parser.parse_args()
 
-    # load the initial data from the previous run
+    # load the final data from the previous run
     input_path = args.input_path.rstrip('/')
     data_root = os.path.dirname(input_path)
-    state = jd.utils.h5.load(os.path.join(input_path, 'init', 'state.h5'))
-    system = jd.utils.h5.load(os.path.join(input_path, 'init', 'system.h5'))
+    state = jd.utils.h5.load(os.path.join(input_path, 'final', 'state.h5'))
+    system = jd.utils.h5.load(os.path.join(input_path, 'final', 'system.h5'))
     _, which = os.path.split(data_root)
 
     if which == '2d':
