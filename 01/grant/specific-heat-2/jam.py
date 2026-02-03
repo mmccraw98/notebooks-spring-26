@@ -27,7 +27,9 @@ if __name__ == "__main__":
 
     which = f'mu-{mu}-alpha-{alpha}-nv-{nv}'
     for run_id in range(n_repeats):
-        data_root = f'/Users/marshallmccraw/Projects/yale/data/s-26/grant/specific-heat/jamming/{which}/{run_id}'
+        # data_root = f'/Users/marshallmccraw/Projects/yale/data/s-26/grant/specific-heat/jamming/{which}/{run_id}'
+        data_root = f'/home/mmccraw/dev/data/26-01-01/grant/specific-heat/jamming/{which}/{run_id}'
+
         if not os.path.exists(data_root):
             os.makedirs(data_root)
         if os.path.exists(os.path.join(data_root, 'state.h5')):

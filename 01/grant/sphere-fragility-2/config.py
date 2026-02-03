@@ -38,6 +38,6 @@ T_max_wca = 1e0
 n_systems_wca = 5
 T_wca = np.logspace(np.log10(T_min_wca), np.log10(T_max_wca), n_systems_wca)
 dt_wca = dt_base * np.sqrt(T_min_wca / T_wca)
-config2d_wca = Config(target_temperatures=T_wca, dt=dt_wca, force_model_type='wca')
+config2d_wca = Config(target_temperatures=T_wca, dt=dt_wca, force_model_type='wca_shifted')
 
 config3d = Config(target_temperatures=T, dt=dt, dim=3, phi=0.4)

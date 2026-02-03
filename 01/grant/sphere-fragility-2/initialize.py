@@ -17,8 +17,8 @@ def create(pos, rad, box_size, e_int, dt, force_model_type):
     )
     if force_model_type == 'spring':
         mats = [jd.Material.create("elastic", young=e_int, poisson=0.5, density=1.0)]
-    elif force_model_type == 'wca':
-        mats = [jd.Material.create("lj", epsilon=1.0, density=1.0)]
+    elif force_model_type == 'wca_shifted':
+        mats = [jd.Material.create("lj", epsilon=e_int, density=1.0)]
     else:
         raise ValueError(f'force_model_type {force_model_type} unknown')
     matcher = jd.MaterialMatchmaker.create("harmonic")

@@ -9,7 +9,9 @@ import numpy as np
 import subprocess
 from pathlib import Path
 
-root = '/Users/marshallmccraw/Projects/yale/data/s-26/grant/dp-fragility/2d-soft'
+# root = '/Users/marshallmccraw/Projects/yale/data/s-26/grant/dp-fragility/2d-soft'
+root = f'/home/mmccraw/dev/data/26-01-01/grant/dp-fragility/dp-fragility/2d-soft'
+
 for name in os.listdir(root)[::-1]:
     path = os.path.join(root, name)
 

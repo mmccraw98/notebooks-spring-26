@@ -6,8 +6,8 @@ import numpy as np
 import os
 import argparse
 import sys
-from file_management import make_data_dir, save_arrs
 from jaxdem.forces.force_manager import ForceManager
+from bump_utils import step
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -44,37 +44,19 @@ if __name__ == "__main__":
         system,
         n=cfg.n_dynamics_steps // 10,
         rescale_every=100,
-        temperature_delta=0.0,  # maintain temperature
+        temperature_delta=cfg.target_temperature,  # maintain temperature
         packing_fraction_delta=cfg.delta_phi,  # compress
         can_rotate=False,
         subtract_drift=True,
     )
     print('Done')
 
-
     # save the initial data
     phi = jd.utils.packingUtils.compute_packing_fraction(state, system)
     run_root = os.path.join(data_root, f'phi-{phi:.6f}')
-    run_root_paths = make_data_dir(run_root)
-    jd.utils.h5.save(state, os.path.join(run_root_paths['init'], 'state.h5'))
-    jd.utils.h5.save(system, os.path.join(run_root_paths['init'], 'system.h5'))
-    
-    # run dynamics
-    print('Running dynamics...')
-    save_stride = cfg.save_stride
-    n_snapshots = cfg.n_dynamics_steps // save_stride
-    state, system, (state_traj, system_traj) = system.trajectory_rollout(
-        state, system, n=n_snapshots, stride=save_stride
-    )
-    print('Done')
 
-    # save the trajectory
-    save_arrs([state_traj.pos, state_traj.vel, state_traj.unique_ID], ['pos', 'vel', 'unique_ID'], os.path.join(run_root_paths['traj'], 'data.h5'))
-
-    # save the final state
-    jd.utils.h5.save(state, os.path.join(run_root_paths['final'], 'state.h5'))
-    jd.utils.h5.save(system, os.path.join(run_root_paths['final'], 'system.h5'))
-    jd.utils.h5.save(dp, os.path.join(run_root_paths['final'], 'dp.h5'))
+    # run the dynamics, calculate quantities of interest, and save the data
+    step(state, system, dp, cfg, run_root)
 
     # run another step if the packing fraction is less than the target
     if phi < cfg.phi_target:
