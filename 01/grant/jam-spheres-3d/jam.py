@@ -19,9 +19,9 @@ if __name__ == "__main__":
     asperity_radius = args.asperity_radius
     nv = args.nv
 
-    n_repeats = 1000
+    n_repeats = 100
     phi = 0.4
-    N = 100
+    N = 1000
 
     which = f'asperity_radius-{asperity_radius}-nv-{nv}'
     for run_id in range(n_repeats):
