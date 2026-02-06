@@ -2,12 +2,8 @@
 
 set -euo pipefail
 
-nv=20
+nv=40
 
-# for mu in 0.01 0.1 0.5 1.0; do
-for mu in 0.5 0.01; do
-#   for alpha in 1.0 1.2 1.5 2.0; do
-  for alpha in 1.0; do
-    python jam.py --mu "$mu" --alpha "$alpha" --nv "$nv"
-  done
+for asperity_radius in 0.1 0.15 0.2 0.3 0.4; do
+  python jam.py --asperity_radius "$asperity_radius" --nv "$nv"
 done

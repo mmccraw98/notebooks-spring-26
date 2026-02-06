@@ -55,6 +55,6 @@ if __name__ == "__main__":
         jd.utils.h5.save(state, os.path.join(data_root, 'state.h5'))
         jd.utils.h5.save(system, os.path.join(data_root, 'system.h5'))
 
-        from bump_utils import render
-        render(state, system, f'{which}.png')
-        break
+        # from bump_utils import render
+        # render(state, system, f'{which}.png')
+        # break
