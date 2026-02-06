@@ -7,7 +7,7 @@ class Config:
     N: int = 100
     nv: int = 20
     mass: float = 1.0
-    n_dynamics_steps: int = 10_000
+    n_dynamics_steps: int = 1_000_000
     phi_target: float = 0.87
     e_int: float = 1.0
     dt: float = 1e-2

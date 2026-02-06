@@ -9,6 +9,8 @@ from functools import partial
 from tqdm import tqdm
 from file_management import save_arrs, make_data_dir
 import os
+from jaxdem.analysis import LagBinsPseudoLog, evaluate_binned
+from jaxdem.analysis.kernels import isf_self_isotropic_kernel, msd_kernel
 
 @partial(jax.jit, static_argnames=("N_dps",))
 def get_com_pos(st, N_dps):
@@ -72,7 +74,7 @@ def compute_msd(pos, batch_size = 256):
         msd[s : s + batch_size] = np.asarray(msd_for_lags(pos, lags))
     return msd, t
 
-def step(state, system, dp, cfg, run_root, save_trajectory=False):
+def step(state, system, dp, cfg, run_root):
     run_root_paths = make_data_dir(run_root)
     jd.utils.h5.save(state, os.path.join(run_root_paths['init'], 'state.h5'))
     jd.utils.h5.save(system, os.path.join(run_root_paths['init'], 'system.h5'))
@@ -87,23 +89,28 @@ def step(state, system, dp, cfg, run_root, save_trajectory=False):
     pe = jax.vmap(jd.utils.thermal.compute_potential_energy)(state_traj, system_traj)
     ke = jax.vmap(jd.utils.compute_translational_kinetic_energy)(state_traj)
     state_traj = jax.vmap(reorder_state)(state_traj)  # un-permute the indices
-    if save_trajectory:
-        jd.utils.h5.save(state_traj, os.path.join(run_root_paths['traj'], 'state_traj.h5'))
-        jd.utils.h5.save(system_traj, os.path.join(run_root_paths['traj'], 'system_traj.h5'))
     print('Done')
 
     # compute the com pos, vel, and the msd
     N_dps = int(jax.device_get(jnp.max(state_traj.deformable_ID))) + 1
     pos_dp = jax.vmap(lambda st: get_com_pos(st, N_dps=N_dps))(state_traj)
     vel_dp = jax.vmap(lambda st: get_com_vel(st, N_dps=N_dps))(state_traj)
-    msd, t = compute_msd(pos_dp)
+
+    T = pos_dp.shape[0]
+    bins = LagBinsPseudoLog(T, dt_min=1, dt_max=T-1)  # pseudo-log lags using time-indices
+    k = 2.0 * jnp.pi / 1.0  # min-diameter is 1.0
+    isf_res = evaluate_binned(isf_self_isotropic_kernel, {"pos": pos_dp}, bins, kernel_kwargs={"k": k})
+    t = bins.values() * cfg.save_stride
+    isf = np.array(isf_res.mean)
+    msd_res = evaluate_binned(msd_kernel, {"pos": pos_dp}, bins)
+    msd = np.array(msd_res.mean)
 
     # save the trajectory
     save_arrs([state_traj.pos, state_traj.vel], ['pos', 'vel'], os.path.join(run_root_paths['traj'], 'vertex_data.h5'))
     # save the com data
     save_arrs(
-        [pe, ke, pos_dp, vel_dp, msd, t],
-        ['pe', 'ke', 'pos_dp', 'vel_dp', 'msd', 't_dimless'],
+        [pe, ke, pos_dp, vel_dp, msd, isf, t],
+        ['pe', 'ke', 'pos_dp', 'vel_dp', 'msd', 'isf', 't_dimless'],
         os.path.join(run_root_paths['traj'], 'data.h5')
     )
 
@@ -112,7 +119,7 @@ def step(state, system, dp, cfg, run_root, save_trajectory=False):
     jd.utils.h5.save(system, os.path.join(run_root_paths['final'], 'system.h5'))
     jd.utils.h5.save(dp, os.path.join(run_root_paths['final'], 'dp.h5'))
 
-    return state, system, dp, state_traj, system_traj
+    return state, system
 
 def calc_mu_eff(vertex_radius, outer_radius, num_vertices):
     return 1 / np.sqrt(((2 * vertex_radius) / ((outer_radius - vertex_radius) * np.sin(np.pi / num_vertices))) ** 2 - 1)
@@ -211,13 +218,13 @@ def create_dps_2d(phi, N, mu_eff, aspect_ratio, min_nv, mass, eb, el, ec):
         rotation_integrator_type="",
         domain_type="periodic",
         force_model_type="spring",
-        collider_type="naive",
-        # collider_type="neighborlist",
-        # collider_kw=dict(
-        #     state=state,
-        #     cutoff=2.0 * jnp.max(state.rad),
-        #     skin=0.03,
-        # ),
+        # collider_type="naive",
+        collider_type="neighborlist",
+        collider_kw=dict(
+            state=state,
+            cutoff=2.0 * jnp.max(state.rad),
+            skin=0.03,
+        ),
         mat_table=mat_table,
         domain_kw=dict(
             box_size=box_size,

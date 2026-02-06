@@ -8,7 +8,7 @@ class Config:
     nv: int = 20
     mu_eff: float = 0.1
     mass: float = 10.0
-    n_dynamics_steps: int = 100_000
+    n_dynamics_steps: int = 1_000_000
     phi_target: float = 1.0
     el: float = 1e1
     eb: float = 1e0
@@ -16,9 +16,9 @@ class Config:
     em: float = 1e0
     e_int: float = 1.0
     dt: float = 1e-2
-    delta_phi: float = 1e-4
+    delta_phi: float = 1e-3
     target_temperature: float = 1e-5
-    save_stride: int = 100  # try 1e3
+    save_stride: int = 1000  # try 1e3
 
 config2d_floppy = Config(eb=None, em=None)
 config2d_soft = Config(eb=1e-4, em=None)

@@ -9,6 +9,8 @@ from functools import partial
 from tqdm import tqdm
 from file_management import save_arrs, make_data_dir
 import os
+from jaxdem.analysis import LagBinsPseudoLog, evaluate_binned
+from jaxdem.analysis.kernels import isf_self_isotropic_kernel, msd_kernel
 
 @jax.jit
 def reorder_state(state):
@@ -59,32 +61,50 @@ def step(state, system, cfg, run_root, save_trajectory=False):
     
     # run dynamics
     print('Running dynamics...')
-    n_snapshots = cfg.n_dynamics_steps // cfg.save_stride
-    state, system, (state_traj, system_traj) = system.trajectory_rollout(
-        state, system, n=n_snapshots, stride=cfg.save_stride
-    )
-    pe = jax.vmap(jd.utils.thermal.compute_potential_energy)(state_traj, system_traj)
-    ke = jax.vmap(jd.utils.compute_translational_kinetic_energy)(state_traj)
-    ke_r = jax.vmap(jd.utils.compute_rotational_kinetic_energy)(state_traj)
-    state_traj = jax.vmap(reorder_state)(state_traj)  # un-permute the indices
-    if save_trajectory:
-        jd.utils.h5.save(state_traj, os.path.join(run_root_paths['traj'], 'state_traj.h5'))
-        jd.utils.h5.save(system_traj, os.path.join(run_root_paths['traj'], 'system_traj.h5'))
+    n_chunks = 10
+    pos = []
+    vel = []
+    angVel = []
+    q_w = []
+    q_xyz = []
+    for i in range(n_chunks):  # break up the dynamics to save on memory
+        n_steps = cfg.n_dynamics_steps // n_chunks
+        n_snapshots = (n_steps // cfg.save_stride)
+        state, system, (state_traj, system_traj) = system.trajectory_rollout(
+            state, system, n=n_snapshots, stride=cfg.save_stride
+        )
+        pe = jax.vmap(jd.utils.thermal.compute_potential_energy)(state_traj, system_traj)
+        ke = jax.vmap(jd.utils.compute_translational_kinetic_energy)(state_traj)
+        ke_r = jax.vmap(jd.utils.compute_rotational_kinetic_energy)(state_traj)
+        unpermuted_state_traj = jax.vmap(reorder_state)(state_traj)  # un-permute the indices
+
+        # get the clump positions and angles
+        cids, offsets = jnp.unique(unpermuted_state_traj.clump_ID[0], return_index=True)
+        pos.append(unpermuted_state_traj.pos_c[:, offsets])
+        vel.append(unpermuted_state_traj.vel[:, offsets])
+        angVel.append(unpermuted_state_traj.angVel[:, offsets])
+        q_w.append(unpermuted_state_traj.q.w[:, offsets])
+        q_xyz.append(unpermuted_state_traj.q.xyz[:, offsets])
+    pos = jnp.concatenate(pos)
+    vel = jnp.concatenate(vel)
+    angVel = jnp.concatenate(angVel)
+    q_w = jnp.concatenate(q_w)
+    q_xyz = jnp.concatenate(q_xyz)
     print('Done')
 
-    # get the clump positions and angles
-    cids, offsets = jnp.unique(state_traj.clump_ID[0], return_index=True)
-    pos = state_traj.pos_c[:, offsets]
-    vel = state_traj.vel[:, offsets]
-    angVel = state_traj.angVel[:, offsets]
-    q_w = state_traj.q.w[:, offsets]
-    q_xyz = state_traj.q.xyz[:, offsets]
-    msd, t = compute_msd(pos)
+    T = pos.shape[0]
+    bins = LagBinsPseudoLog(T, dt_min=1, dt_max=T-1)  # pseudo-log lags using time-indices
+    k = 2.0 * jnp.pi / 1.0  # min-diameter is 1.0
+    isf_res = evaluate_binned(isf_self_isotropic_kernel, {"pos": pos}, bins, kernel_kwargs={"k": k})
+    t = bins.values() * cfg.save_stride
+    isf = np.array(isf_res.mean)
+    msd_res = evaluate_binned(msd_kernel, {"pos": pos}, bins)
+    msd = np.array(msd_res.mean)
 
     # save the trajectory
     save_arrs(
-        [pe, ke, ke_r, pos, q_w, q_xyz, vel, angVel, msd, t],
-        ['pe', 'ke', 'ke_r', 'pos', 'q', 'q_xyz', 'vel', 'angVel', 'msd', 't_dimless'],
+        [pe, ke, ke_r, pos, q_w, q_xyz, vel, angVel, msd, isf, t],
+        ['pe', 'ke', 'ke_r', 'pos', 'q', 'q_xyz', 'vel', 'angVel', 'msd', 'isf', 't_dimless'],
         os.path.join(run_root_paths['traj'], 'data.h5')
     )
 
@@ -92,7 +112,7 @@ def step(state, system, cfg, run_root, save_trajectory=False):
     jd.utils.h5.save(state, os.path.join(run_root_paths['final'], 'state.h5'))
     jd.utils.h5.save(system, os.path.join(run_root_paths['final'], 'system.h5'))
 
-    return state, system, state_traj, system_traj
+    return state, system, state_traj, system_traj, pe
 
 def calc_mu_eff(vertex_radius, outer_radius, num_vertices):
     return 1 / np.sqrt(((2 * vertex_radius) / ((outer_radius - vertex_radius) * np.sin(np.pi / num_vertices))) ** 2 - 1)

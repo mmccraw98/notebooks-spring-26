@@ -12,7 +12,7 @@ from file_management import make_data_dir, save_arrs, load_arrs
 from tqdm import tqdm
 
 from jaxdem.analysis import LagBinsPseudoLog, evaluate_binned
-from jaxdem.analysis.kernels import isf_self_isotropic_kernel
+from jaxdem.analysis.kernels import isf_self_isotropic_kernel, msd_kernel
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -67,6 +67,7 @@ true_phis_hist = []
 temperatures_hist = []
 taus_hist = []
 isfs_hist = []
+msds_hist = []
 ts_hist = []
 
 for phi_dir in tqdm(os.listdir(root)):
@@ -91,12 +92,16 @@ for phi_dir in tqdm(os.listdir(root)):
 
     t_dim = t[:, None] * cfg.dt * jnp.sqrt(temp[None, :])
     Fs = np.array(res.mean)
+
+    res = evaluate_binned(msd_kernel, {"pos": pos}, bins)
+    msd = np.array(res.mean)
     for i, (st, sy) in enumerate(zip(
         jd.State.unstack(state),
         jd.System.unstack(system),
     )):
         tau = get_relaxation_time(Fs[:, i], t_dim[:, i])
         isfs_hist.append(Fs[:, i])
+        msds_hist.append(msd[:, i])
         ts_hist.append(t_dim[:, i])
         
         phis_hist.append(float(phi))
@@ -127,6 +132,7 @@ temperatures_hist = np.array(temperatures_hist)
 taus_hist = np.array(taus_hist)
 ts_hist = np.array(ts_hist)
 isfs_hist = np.array(isfs_hist)
+msds_hist = np.array(msds_hist)
 
 np.savez(
     f'aggregated_data_{which}.npz',
@@ -136,4 +142,5 @@ np.savez(
     tau=taus_hist,
     t=ts_hist,
     isf=isfs_hist,
+    msd=msds_hist,
 )

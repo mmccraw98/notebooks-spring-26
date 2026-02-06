@@ -36,10 +36,23 @@ if __name__ == "__main__":
     control = jax.vmap(
         lambda st, sys: jd.utils.control_nvt_density(
             st, sys,
-            n=cfg.n_dynamics_steps // 10,
+            n=cfg.n_dynamics_steps // 20,
             rescale_every=100,
-            temperature_delta=0.0,  # maintain temperature
+            temperature_target=0.0,  # maintain temperature
             packing_fraction_delta=cfg.delta_phi,  # compress
+            can_rotate=False,
+            subtract_drift=True,
+        ),
+        in_axes=(0, 0),
+    )
+    state, system = control(state, system)
+    control = jax.vmap(
+        lambda st, sys: jd.utils.control_nvt_density(
+            st, sys,
+            n=cfg.n_dynamics_steps // 20,
+            rescale_every=100,
+            temperature_target=0.0,  # maintain temperature
+            packing_fraction_delta=0.0,  # maintain density
             can_rotate=False,
             subtract_drift=True,
         ),

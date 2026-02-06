@@ -21,7 +21,8 @@ if __name__ == "__main__":
     nv = cfg.nv
 
     which = f'mu-{mu}-alpha-{alpha}-nv-{nv}'
-    data_root = f'/home/mmccraw/dev/data/26-01-01/grant/dp-fragility-2/{which}'
+    # data_root = f'/home/mmccraw/dev/data/26-01-01/grant/dp-fragility-2/{which}'
+    data_root = f'/home/mmccraw/dev/data/26-01-01/grant/dp-fragility-2/help/{which}'
 
     if not os.path.exists(data_root):
         os.makedirs(data_root)
@@ -54,7 +55,7 @@ if __name__ == "__main__":
         system,
         n=cfg.n_dynamics_steps // 10,
         rescale_every=100,
-        temperature_delta=cfg.target_temperature,  # maintain temperature
+        temperature_target=cfg.target_temperature,  # maintain temperature
         packing_fraction_delta=0.0,  # do not compress on the first run
         can_rotate=cfg.can_rotate,
         subtract_drift=cfg.subtract_drift,
@@ -66,4 +67,7 @@ if __name__ == "__main__":
     run_root = os.path.join(data_root, f'phi-{phi:.6f}')
 
     # run the dynamics, calculate quantities of interest, and save the data
-    step(state, system, dp, cfg, run_root)
+    from time import time
+    start = time()
+    step(state, system, cfg, run_root)
+    print(time() - start)

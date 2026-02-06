@@ -15,7 +15,7 @@ from jaxdem.utils.randomSphereConfiguration import random_sphere_configuration
 
 
 if __name__ == "__main__":
-    data_root = '/home/mmccraw/dev/data/26-01-01/grant/sphere-fragilitiy/dynamics-2'
+    data_root = '/home/mmccraw/dev/data/26-01-01/grant/sphere-fragilitiy/dynamics-3'
 
     particle_radii = []
     for _ in range(config2.target_temperatures.size):

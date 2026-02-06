@@ -82,7 +82,7 @@ if __name__ == "__main__":
             st, sys,
             n=cfg.n_dynamics_steps // 10,
             rescale_every=100,
-            temperature_delta=0.0,  # maintain temperature
+            temperature_target=0.0,  # maintain temperature
             packing_fraction_delta=0.0,  # do not compress on the first run
             can_rotate=False,
             subtract_drift=True,

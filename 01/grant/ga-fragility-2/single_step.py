@@ -27,10 +27,10 @@ if __name__ == "__main__":
         system,
         n=cfg.n_dynamics_steps // 10,
         rescale_every=100,
-        temperature_delta=cfg.target_temperature,  # maintain temperature
+        temperature_target=cfg.target_temperature,  # maintain temperature
         packing_fraction_delta=cfg.delta_phi,  # compress
-        can_rotate=False,
-        subtract_drift=True,
+        can_rotate=cfg.can_rotate,
+        subtract_drift=cfg.subtract_drift,
     )
     print('Done')
 
