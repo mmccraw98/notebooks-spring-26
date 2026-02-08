@@ -24,69 +24,6 @@ def quat_from_x_to(d):
     # Antiparallel fallback (d ≈ [-1,0,0]): 180° about y-axis
     return jnp.where(norm < 1e-8, jnp.array([0.0, 0.0, 1.0, 0.0]), q / norm)
 
-def greedy_nearest_neighbor_order(points):
-    """Return index order visiting each point once, always jumping to the closest unvisited."""
-    N = points.shape[0]
-    visited = np.zeros(N, dtype=bool)
-    order = np.empty(N, dtype=int)
-    order[0] = 0  # start at vertex 0
-    visited[0] = True
-    for k in range(1, N):
-        last = points[order[k - 1]]
-        dists = np.linalg.norm(points - last, axis=-1)
-        dists[visited] = np.inf
-        order[k] = np.argmin(dists)
-        visited[order[k]] = True
-    return order
-
-def smooth_nearest_neighbor_order(points, alpha=0.5):
-    """
-    Greedy path that balances proximity and directional consistency.
-    Cost = alpha * normalized_distance + (1 - alpha) * (1 - cos(turning_angle))
-    alpha=1.0 is pure nearest-neighbor, alpha=0.0 is pure straight-line preference.
-    """
-    N = points.shape[0]
-    visited = np.zeros(N, dtype=bool)
-    order = np.empty(N, dtype=int)
-    # Start at vertex 0
-    order[0] = 0
-    visited[0] = True
-    # Pick nearest for the second point (no direction yet)
-    dists = np.linalg.norm(points - points[0], axis=-1)
-    dists[0] = np.inf
-    order[1] = np.argmin(dists)
-    visited[order[1]] = True
-    for k in range(2, N):
-        prev = points[order[k - 2]]
-        curr = points[order[k - 1]]
-        # Current travel direction
-        travel_dir = curr - prev
-        travel_norm = np.linalg.norm(travel_dir)
-        if travel_norm > 1e-12:
-            travel_dir /= travel_norm
-        else:
-            travel_dir = np.zeros_like(travel_dir)
-        # Candidate vectors
-        deltas = points - curr                                      # (N, 3)
-        dists = np.linalg.norm(deltas, axis=-1)                    # (N,)
-        # Normalized candidate directions
-        safe_dists = np.where(dists > 1e-12, dists, 1.0)
-        candidate_dirs = deltas / safe_dists[:, None]               # (N, 3)
-        # Cosine of turning angle (1 = straight ahead, -1 = U-turn)
-        cos_turn = candidate_dirs @ travel_dir                      # (N,)
-        # Normalize distance to [0, 1] range
-        max_dist = np.max(dists[~visited]) if np.any(~visited) else 1.0
-        norm_dist = dists / max(max_dist, 1e-12)
-        # Cost: low = good
-        # Turn cost: 0 when straight ahead, 1 when U-turn
-        turn_cost = (1.0 - cos_turn) / 2.0                         # [0, 1]
-        cost = alpha * norm_dist + (1.0 - alpha) * turn_cost
-        cost[visited] = np.inf
-        order[k] = np.argmin(cost)
-        visited[order[k]] = True
-
-    return order
-
 def create_state_and_system(particle_radii, vertex_counts, asperity_radius, core_type, mesh_type):
     state, box_size = generate_ga_clump_state(
         particle_radii=particle_radii,
@@ -264,57 +201,27 @@ mu = []
 r = []
 
 # apply the i-th rotation
-# i = 0
-for i in tqdm(range(directions.shape[0])):
-# order = greedy_nearest_neighbor_order(np.array(directions))
-# order = smooth_nearest_neighbor_order(np.array(directions))
-# for i in tqdm(order):
-    state.pos_c = system.domain.box_size / 2  # center both
-    state.pos_c += tracer_positions[i] * tracer_mask[:, None]  # adjust the tracer position
-    state.q.w = jnp.where(tracer_mask[:, None], quats[i, 0:1], 1.0)  # rotate
-    state.q.xyz = jnp.where(tracer_mask[:, None], quats[i, 1:4], 0.0)
+i = 0
+state.pos_c = system.domain.box_size / 2  # center both
+state.pos_c += tracer_positions[i] * tracer_mask[:, None]  # adjust the tracer position
+state.q.w = jnp.where(tracer_mask[:, None], quats[i, 0:1], 1.0)  # rotate
+state.q.xyz = jnp.where(tracer_mask[:, None], quats[i, 1:4], 0.0)
 
-    # find minimal separation point
-    separation, state = find_contact_point(state, system, max_separation, min_separation, tracer_mask, offsets, pe_target, separation_tolerance)
-    state, system = system.collider.compute_force(state, system)
+# find minimal separation point
+separation, state = find_contact_point(state, system, max_separation, min_separation, tracer_mask, offsets, pe_target, separation_tolerance)
+state, system = system.collider.compute_force(state, system)
 
-    pos_c = state.pos_c[offsets]
-    r_ij = pos_c[CENTRAL_ID] - pos_c[TRACER_ID]
-    separation = jnp.linalg.norm(r_ij)
-    direction = r_ij / separation
-    force = jnp.sum(state.force[tracer_mask], axis=0)
-    force_n_mag = jnp.sum(force * direction)
-    force_t_mag = jnp.linalg.norm(force - force_n_mag * direction)
-    pos.append(state.pos)
-    rad.append(state.rad)
-    pid.append(state.clump_ID)
-    bs.append(system.domain.box_size)
-    mu.append(jnp.abs(force_t_mag / force_n_mag))
-    r.append(separation)
+pos_c = state.pos_c[offsets]
+r_ij = pos_c[CENTRAL_ID] - pos_c[TRACER_ID]
+separation = jnp.linalg.norm(r_ij)
+direction = r_ij / separation
+force = jnp.sum(state.force[tracer_mask], axis=0)
+force_n_mag = jnp.sum(force * direction)
+force_t_mag = jnp.linalg.norm(force - force_n_mag * direction)
+# pos.append(state.pos)
+# rad.append(state.rad)
+# pid.append(state.clump_ID)
+# bs.append(system.domain.box_size)
+# mu.append(jnp.abs(force_t_mag / force_n_mag))
+# r.append(separation)
 
-# from anim_utils import render, animate
-# # render(state, system, 'test.png')
-# animate(
-#     np.array(pos),
-#     np.array(rad),
-#     np.array(pid),
-#     np.array(bs),
-#     'anim.gif',
-# )
-
-np.savez(
-    f'results/nv-{state.N // 2}-rad-{asperity_radius}.npz',
-    mu=mu,
-    r=r,
-    # TODO: get the angles
-)
-
-# import matplotlib.pyplot as plt
-# mu_bins = np.logspace(np.log10(min(mu)), np.log10(max(mu)), int(np.sqrt(len(mu))))
-# p, bin_edges = np.histogram(mu, mu_bins, density=True)
-# x = (bin_edges[1:] + bin_edges[:-1]) / 2
-# plt.plot(x, p)
-# plt.yscale('log')
-# plt.xscale('log')
-# plt.savefig(f'results/nv-{nv}-rad-{state.N // 2}.png', dpi=600)
-# plt.close()
