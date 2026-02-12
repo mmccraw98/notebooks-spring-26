@@ -11,9 +11,10 @@ subdivisions = 6
 n_theta = 10
 n_phi = 10
 batch_size = 10_000
-mesh_type = "ico"
+mesh_type = "octa"
 
-for nv in [13, 43, 93]:
+# for nv in [13, 43, 93]:  # for iso
+for nv in [19, 39, 103]:  # for octa
     for asperity_radius in np.linspace(0.01, particle_radius, n_asperity_points + 1)[:-1]:
         cmd = [
             sys.executable, "calculate_surface_friction.py",

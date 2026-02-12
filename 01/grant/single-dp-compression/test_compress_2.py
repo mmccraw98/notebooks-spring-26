@@ -10,12 +10,12 @@ jax.config.update("jax_enable_x64", True)
 
 def make_halfspace_harmonic_plate(
     *,
-    k: float,                 # your e_plate
-    plate: float,             # z_plate (or x/y plate depending on axis)
-    axis: str | int = "z",    # "x","y","z" or 0,1,2
-    side: str = "ge",         # "ge" => coord >= plate, "le" => coord <= plate
+    k: float,
+    plate: float,
+    axis: str | int = "z",
+    side: str = "ge",
     respect_fixed: bool = True,
-    species_id: int | None = None,  # optional: only apply to a species
+    species_id: int | None = None,
 ):
     axis_map = {"x": 0, "y": 1, "z": 2}
     ax = axis_map.get(axis, axis)
@@ -31,64 +31,58 @@ def make_halfspace_harmonic_plate(
         return m
 
     def energy_fn(pos, state, system):
-        coord = pos[..., ax]          # (..., N)
+        coord = pos[..., ax]
         delta = coord - plate
         m = _mask(coord, state).astype(pos.dtype)
-        return 0.5 * k * jnp.square(delta) * m   # (..., N)
+        return 0.5 * k * jnp.square(delta) * m
 
     def force_fn(pos, state, system):
         coord = pos[..., ax]
         delta = coord - plate
         m = _mask(coord, state).astype(pos.dtype)
-
-        f = jnp.zeros_like(pos)       # (..., N, dim)
-        f = f.at[..., ax].set(-k * delta * m)   # force points toward the plate
-        tau = jnp.zeros_like(state.torque)      # no intrinsic torque about sphere center
+        f = jnp.zeros_like(pos)
+        f = f.at[..., ax].set(-k * delta * m)
+        tau = jnp.zeros_like(state.torque)
         return f, tau
 
     return force_fn, energy_fn
 
-# --- rest mesh from trimesh (icosphere) ---
 R = 2.0
 box_size = np.ones(3) * 2.01 * R
+box_size[:2] *= 2.0
 subdiv = 2
 mesh = trimesh.creation.icosphere(subdivisions=subdiv, radius=R)
 
-V = np.asarray(mesh.vertices, dtype=float)          # (N, 3)
-V += box_size / 2                                  # center the particle in [0, box_size]
-F = np.asarray(mesh.faces, dtype=np.int32)          # (M, 3)
+V = np.asarray(mesh.vertices, dtype=float)
+V += box_size / 2
+F = np.asarray(mesh.faces, dtype=np.int32)
 
-# unique wireframe edges (for "length" energy el)
-E = np.asarray(mesh.edges_unique, dtype=np.int32)   # (E, 2)
+E = np.asarray(mesh.edges_unique, dtype=np.int32)
 
-# face adjacency pairs (for "bending" energy eb)
-A = np.asarray(mesh.face_adjacency, dtype=np.int32) # (A, 2)
+A = np.asarray(mesh.face_adjacency, dtype=np.int32)
 
-# --- rest bending angles from the *rest* mesh geometry ---
 v0, v1, v2 = V[F[:, 0]], V[F[:, 1]], V[F[:, 2]]
 n = np.cross(v1 - v0, v2 - v0)
 n /= np.linalg.norm(n, axis=1, keepdims=True)
 
-theta0 = angle_between_normals(n[A[:, 0]], n[A[:, 1]])  # (A,)
+theta0 = angle_between_normals(n[A[:, 0]], n[A[:, 1]])
 
-# --- deformable particle container (single body => coeffs are length-1 arrays) ---
 DP = jd.DeformableParticleContainer.create(
     vertices=jnp.asarray(V),
     elements=jnp.asarray(F),
     edges=jnp.asarray(E),
     element_adjacency=jnp.asarray(A),
-    initial_bending=jnp.asarray(theta0),  # <- rest bending from mesh (NOT flat default)
-    em=jnp.array([1.0]),      # area ("measure") stiffness [x]
-    ec=jnp.array([1.0]),      # content (volume) stiffness [x]
-    # eb=jnp.array([1.0]),      # bending stiffness [NO]
-    el=jnp.array([1.0]),        # edge-length stiffness [x]
-    # gamma=jnp.array([0.0]),   # optional surface tension term
+    initial_bending=jnp.asarray(theta0),
+    em=jnp.array([1.0]),
+    ec=jnp.array([1.0]),
+    # eb=jnp.array([1.0]),
+    el=jnp.array([1.0]),
+    # gamma=jnp.array([0.0]),
 )
 
-# --- state: one deformable body represented by its mesh vertices as collision spheres ---
 node_rad = 0.2 * R
 node_mass = 1.0
-dt = 1e-2
+dt = 1e-3
 e_int = 1.0
 
 
@@ -104,7 +98,6 @@ state = jd.State.create(
     deformable_ID=jnp.asarray(dp_id),
 )
 
-# --- system: register deformable force + deformable potential energy ---
 mats = [jd.Material.create("elastic", young=e_int, poisson=0.5, density=1.0)]
 matcher = jd.MaterialMatchmaker.create("harmonic")
 mat_table = jd.MaterialTable.from_materials(mats, matcher=matcher)
@@ -122,7 +115,7 @@ force_hist = []
 pe_hist = []
 plate_distance_hist = []
 
-plate_increment = 1e-2  # change plate z positions each step
+plate_increment = 3e-2  # change plate z positions each step
 
 data_root = '/home/mmccraw/dev/data/26-01-01/grant/dp-compressions/test-data'
 import os
@@ -130,52 +123,56 @@ if not os.path.exists(data_root):
     os.makedirs(data_root)
 
 from tqdm import tqdm
-for i in tqdm(range(50)):
-    plate_pos_upper -= plate_increment
-    plate_force_upper, plate_energy_upper = make_halfspace_harmonic_plate(
-        k=1e4,
-        plate=plate_pos_upper,
-        axis="z",
-        side="ge",          # only penalize z >= plate_pos_upper
-        species_id=None,
-    )
+N_steps = 50
+for direction in [1, -1]:
+    for i in tqdm(range(N_steps)):
+        plate_pos_upper -= plate_increment * direction
+        plate_force_upper, plate_energy_upper = make_halfspace_harmonic_plate(
+            k=1e4,
+            plate=plate_pos_upper,
+            axis="z",
+            side="ge",  # only penalize z >= plate_pos_upper
+            species_id=None,
+        )
 
-    plate_pos_lower += plate_increment
-    plate_force_lower, plate_energy_lower = make_halfspace_harmonic_plate(
-        k=1e4,
-        plate=plate_pos_lower,
-        axis="z",
-        side="le",          # only penalize z <= plate_pos_lower
-        species_id=None,
-    )
+        plate_pos_lower += plate_increment * direction
+        plate_force_lower, plate_energy_lower = make_halfspace_harmonic_plate(
+            k=1e4,
+            plate=plate_pos_lower,
+            axis="z",
+            side="le",  # only penalize z <= plate_pos_lower
+            species_id=None,
+        )
 
-    system = jd.System.create(
-        state.shape,
-        dt=dt,
-        domain_type="free",
-        force_model_type="spring",
-        linear_integrator_type="linearfire",
-        force_manager_kw=dict(
-            force_functions=(
-                (dp_force, dp_energy),
-                (plate_force_upper, plate_energy_upper, False),
-                (plate_force_lower, plate_energy_lower, False),
+        system = jd.System.create(
+            state.shape,
+            dt=dt,
+            collider_type="",
+            domain_type="free",
+            force_model_type="spring",
+            linear_integrator_type="linearfire",
+            force_manager_kw=dict(
+                force_functions=(
+                    (dp_force, dp_energy),
+                    (plate_force_upper, plate_energy_upper, False),
+                    (plate_force_lower, plate_energy_lower, False),
+                ),
             ),
-        ),
-        mat_table=mat_table,
-    )
+            mat_table=mat_table,
+        )
 
-    state, system, steps, final_pe = jd.minimizers.minimize(state, system)
-    pos_hist.append(state.pos)
-    rad_hist.append(state.rad)
-    id_hist.append(state.deformable_ID)
-    box_size_hist.append(system.domain.box_size)
-    force_hist.append(state.force)
-    pe_hist.append(final_pe)
-    plate_distance_hist.append(plate_pos_upper - plate_pos_lower)
+        state, system, steps, final_pe = jd.minimizers.minimize(state, system)
+        pos_hist.append(state.pos)
+        rad_hist.append(state.rad)
+        id_hist.append(state.deformable_ID)
+        # box_size_hist.append(system.domain.box_size)
+        box_size_hist.append(box_size)
+        force_hist.append(state.force)
+        pe_hist.append(final_pe)
+        plate_distance_hist.append(plate_pos_upper - plate_pos_lower)
 
-    jd.utils.h5.save(state, os.path.join(data_root, f'state_{i}.h5'))
-    jd.utils.h5.save(system, os.path.join(data_root, f'system_{i}.h5'))
+        jd.utils.h5.save(state, os.path.join(data_root, f'state_{i}_{direction}.h5'))
+        jd.utils.h5.save(system, os.path.join(data_root, f'system_{i}_{direction}.h5'))
     
 
 plate_distance_hist = np.array(plate_distance_hist)
@@ -213,7 +210,6 @@ with h5py.File("traj.h5", "w") as f:
     f.create_dataset("ID", data=np.asarray(id_hist))
     f.create_dataset("box_size", data=np.asarray(box_size_hist))
 
-# --- Optional: generate a GIF animation (requires ParaView pvbatch) ---
 script_dir = Path(__file__).resolve().parent
 run_animation = "/home/mmccraw/dev/analysis/fall-25/12/testing-jaxdem-scripts/animation/run_animation.sh"
 subprocess.run(
