@@ -48,13 +48,13 @@ def measure_energy_conservation_dps(phi, N, mass, target_temperature, dim, e_int
 
     particle_radii = jd.utils.dispersity.get_polydisperse_radii(N, count_ratios=[1.0], size_ratios=[1.0])
     vertex_counts = jnp.ones_like(particle_radii) * Nv
-    base_state, dp, box_size = generate_ga_deformable_state(particle_radii, vertex_counts, phi, dim, asperity_radius, add_core=False, em=e_m, eb=e_b, ec=e_c, mass=mass)
+    base_state, dp, box_size = generate_ga_deformable_state(particle_radii, vertex_counts, phi, dim, asperity_radius, em=e_m, eb=e_b, ec=e_c, mass=mass)
 
     fluctuation = []
     for dt, n_step, save_stride in zip(dts, n_steps, save_strides):
         n_step = int(n_step); save_stride = int(save_stride); dt = float(dt)
         state = jax.tree.map(lambda x: x, base_state)
-        state = jd.utils.thermal.set_temperature(state, target_temperature, is_rigid=True, subtract_drift=True)
+        state = jd.utils.thermal.set_temperature(state, target_temperature, can_rotate=False, subtract_drift=True)
 
         if collider_type == "naive":
             collider_kw = dict()
@@ -109,7 +109,6 @@ def measure_energy_conservation_dps(phi, N, mass, target_temperature, dim, e_int
 
         from bump_utils import animate
         animate(state_traj, system_traj, 'test.gif', id_name='deformable_ID')
-        exit()
 
     fluctuation = jnp.array(fluctuation)
     exponent, _ = np.polyfit(np.log(dts), np.log(fluctuation), 1)

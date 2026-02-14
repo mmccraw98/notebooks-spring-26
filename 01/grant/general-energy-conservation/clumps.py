@@ -55,14 +55,15 @@ def measure_energy_conservation_clumps(phi, N, mass, target_temperature, dim, e_
 
     particle_radii = jd.utils.dispersity.get_polydisperse_radii(N, count_ratios=[1.0], size_ratios=[1.0])
     vertex_counts = jnp.ones_like(particle_radii) * Nv
-    base_state, box_size = generate_ga_clump_state(particle_radii, vertex_counts, phi, dim, asperity_radius, add_core=False, mass=mass)
+    base_state, box_size = generate_ga_clump_state(particle_radii, vertex_counts, phi, dim, asperity_radius, body_type='solid', mass=mass)
 
     fluctuation = []
     for dt, n_step, save_stride in zip(dts, n_steps, save_strides):
         n_step = int(n_step); save_stride = int(save_stride); dt = float(dt)
         state = jax.tree.map(lambda x: x, base_state)
-        state = jd.utils.thermal.set_temperature(state, target_temperature, is_rigid=True, subtract_drift=True)
+        state = jd.utils.thermal.set_temperature(state, target_temperature, can_rotate=True, subtract_drift=True)
 
+        collider_kw = dict()
         if collider_type == "naive":
             collider_kw = dict()
         elif collider_type == "neighborlist":
@@ -109,6 +110,12 @@ def measure_energy_conservation_clumps(phi, N, mass, target_temperature, dim, e_
     fluctuation = jnp.array(fluctuation)
     exponent, _ = np.polyfit(np.log(dts), np.log(fluctuation), 1)
     print(f"Total Energy Fluctuation ~ dt^{exponent:.2f}.  Expected: dt^{EXPECTED_EXPONENT}")
+
+    plt.plot(dts, fluctuation)
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.savefig('dt-fluc.png')
+    plt.close()
 
 if __name__ == "__main__":
     dim = 2

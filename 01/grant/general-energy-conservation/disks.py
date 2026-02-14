@@ -49,7 +49,7 @@ def measure_energy_conservation_spheres(phi, N, mass, target_temperature, dim, e
             rad=particle_radii.copy(),
             mass=jnp.ones_like(particle_radii) * mass
         )
-        state = jd.utils.thermal.set_temperature(state, target_temperature, is_rigid=False, subtract_drift=True)
+        state = jd.utils.thermal.set_temperature(state, target_temperature, can_rotate=False, subtract_drift=True)
 
         if collider_type == "naive":
             collider_kw = dict()
