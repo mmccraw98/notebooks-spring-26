@@ -4,6 +4,7 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import os
 import numpy as np
+import h5py
 from tqdm import tqdm
 
 from jaxdem.utils.geometricAsperityCreation import generate_mesh, compute_mesh_properties
@@ -52,11 +53,14 @@ class ThomsonParticle:
     asperity_radius: float
     particle_radius: float
     pos_c: jnp.array
+    pos: jnp.array
     q: jnp.array
     inertia_dimensionless: jnp.array
     volume: float
     energy: float
     N_steps: int
+
+SCALAR_FIELDS = {'nv', 'asperity_radius', 'particle_radius', 'volume', 'energy', 'N_steps'}
 
 def cache_thomson_particle_properties(particles, cache_path):
     if not isinstance(particles, list):
@@ -64,14 +68,17 @@ def cache_thomson_particle_properties(particles, cache_path):
     cache_dir = os.path.dirname(cache_path)
     if cache_dir:
         os.makedirs(cache_dir, exist_ok=True)
-    if os.path.exists(cache_path):
-        cache = {k: list(v) for k, v in np.load(cache_path).items()}
-    else:
-        cache = {f.name: [] for f in fields(ThomsonParticle)}
-    for particle in particles:
-        for field in fields(particle):
-            cache[field.name].append(getattr(particle, field.name))
-    np.savez(cache_path, **cache)
+    with h5py.File(cache_path, 'a') as f:
+        grp = f.require_group('particles')
+        offset = len(grp)
+        for i, particle in enumerate(particles):
+            p_grp = grp.create_group(str(offset + i))
+            for field in fields(particle):
+                val = getattr(particle, field.name)
+                if field.name in SCALAR_FIELDS:
+                    p_grp.attrs[field.name] = val
+                else:
+                    p_grp.create_dataset(field.name, data=np.asarray(val))
 
 def get_thomson_particle_properties(
     N,
@@ -89,23 +96,31 @@ def get_thomson_particle_properties(
     matches = []
 
     if load_from_cache and cache_path is not None and os.path.exists(cache_path):
-        cache = dict(np.load(cache_path, allow_pickle=True))
-        mask = (
-            (cache['nv'] == nv)
-            & (np.isclose(cache['asperity_radius'], asperity_radius))
-            & (np.isclose(cache['particle_radius'], particle_radius))
-        )
-        if N_steps is not None:
-            mask &= cache['N_steps'] == N_steps
-        if energy is not None:
-            mask &= np.isclose(cache['energy'], energy)
-        indices = np.where(mask)[0]
-        if len(indices) > 0:
-            chosen = np.random.choice(indices, size=min(N, len(indices)), replace=False)
-            for idx in chosen:
-                matches.append(ThomsonParticle(
-                    **{f.name: cache[f.name][idx] for f in fields(ThomsonParticle)}
-                ))
+        with h5py.File(cache_path, 'r') as f:
+            if 'particles' in f:
+                matching_keys = []
+                for key in f['particles']:
+                    p = f['particles'][key]
+                    if (p.attrs['nv'] == nv
+                            and np.isclose(p.attrs['asperity_radius'], asperity_radius)
+                            and np.isclose(p.attrs['particle_radius'], particle_radius)):
+                        if N_steps is not None and p.attrs['N_steps'] != N_steps:
+                            continue
+                        if energy is not None and not np.isclose(p.attrs['energy'], energy):
+                            continue
+                        matching_keys.append(key)
+                if len(matching_keys) > 0:
+                    chosen = np.random.choice(
+                        matching_keys, size=min(N, len(matching_keys)), replace=False
+                    )
+                    for key in chosen:
+                        p = f['particles'][key]
+                        matches.append(ThomsonParticle(
+                            **{field.name: (
+                                p.attrs[field.name] if field.name in SCALAR_FIELDS
+                                else jnp.array(p[field.name][...])
+                            ) for field in fields(ThomsonParticle)}
+                        ))
 
     n_remaining = N - len(matches)
     if n_remaining > 0:
@@ -176,6 +191,7 @@ def generate_thomson_particle_properties(
                 asperity_radius=asperity_radius,
                 particle_radius=particle_radius,
                 pos_c=pos_c,
+                pos=a_pos,
                 q=q,
                 inertia_dimensionless=inertia_dimensionless,
                 volume=volume,
@@ -188,7 +204,7 @@ def generate_thomson_particle_properties(
 
 for nv in [20, 50, 100]:
     for asperity_radius in [0.08, 0.12, 0.14, 0.18, 0.25, 0.35, 0.45]:
-        for N_steps in [0, 10, 100, 1000]:
+        for N_steps in [0, 10, 100, 1_000, 10_000, 100_000]:
             get_thomson_particle_properties(
                 N=1000,
                 nv=nv,
@@ -196,7 +212,7 @@ for nv in [20, 50, 100]:
                 particle_radius=0.5,
                 N_steps=N_steps,
                 energy=None,
-                cache_path='thomson-particle-cache.npz',
+                cache_path='thomson-particle-cache.h5',
                 load_from_cache=True,
                 allow_generation=True,
                 seed=None,
