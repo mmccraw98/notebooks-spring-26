@@ -12,7 +12,7 @@ from jaxdem.utils.geometricAsperityCreation import generate_mesh, compute_mesh_p
 def random_points_on_sphere(key, N, S=1):
     """Generate n random points uniformly distributed on the unit sphere."""
     points = jax.random.normal(key, shape=(S, N, 3))
-    norms = jnp.linalg.norm(points, axis=1, keepdims=True)
+    norms = jnp.linalg.norm(points, axis=-1, keepdims=True)
     return (points / norms).squeeze()
 
 def riesz_energy(pos, alpha):
@@ -79,6 +79,22 @@ def cache_thomson_particle_properties(particles, cache_path):
                     p_grp.attrs[field.name] = val
                 else:
                     p_grp.create_dataset(field.name, data=np.asarray(val))
+
+def merge_thomson_particle_caches(source_paths, dest_path):
+    cache_dir = os.path.dirname(dest_path)
+    if cache_dir:
+        os.makedirs(cache_dir, exist_ok=True)
+    with h5py.File(dest_path, 'a') as dest:
+        grp = dest.require_group('particles')
+        for src_path in source_paths:
+            if not os.path.exists(src_path):
+                continue
+            with h5py.File(src_path, 'r') as src:
+                if 'particles' not in src:
+                    continue
+                for key in src['particles']:
+                    new_key = str(len(grp))
+                    src.copy(src['particles'][key], grp, name=new_key)
 
 def get_thomson_particle_properties(
     N,
@@ -216,7 +232,7 @@ for nv in [20, 50, 100]:
                 load_from_cache=True,
                 allow_generation=True,
                 seed=None,
-                mesh_subdivisions=5,
+                mesh_subdivisions=6,
             )
 
 # TODO: validate the mesh subdivisions is high enough for stable calculation of nv=100 (what is the convergence?)

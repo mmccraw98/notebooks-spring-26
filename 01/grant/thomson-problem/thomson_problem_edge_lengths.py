@@ -34,7 +34,7 @@ def hist(val, bins=None, log=False):
 def random_points_on_sphere(key, n):
     """Generate n random points uniformly distributed on the unit sphere."""
     points = jax.random.normal(key, shape=(n, 3))
-    norms = jnp.linalg.norm(points, axis=1, keepdims=True)
+    norms = jnp.linalg.norm(points, axis=-1, keepdims=True)
     return points / norms
 
 def riesz_energy(pos, alpha):

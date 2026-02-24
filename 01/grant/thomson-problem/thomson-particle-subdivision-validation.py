@@ -13,7 +13,7 @@ from jaxdem.utils.geometricAsperityCreation import generate_mesh, compute_mesh_p
 def random_points_on_sphere(key, N, S=1):
     """Generate n random points uniformly distributed on the unit sphere."""
     points = jax.random.normal(key, shape=(S, N, 3))
-    norms = jnp.linalg.norm(points, axis=1, keepdims=True)
+    norms = jnp.linalg.norm(points, axis=-1, keepdims=True)
     return (points / norms).squeeze()
 
 def riesz_energy(pos, alpha):
@@ -133,7 +133,7 @@ def compute_clump_properties_from_spheres(
 
 
 N_steps = 1_000
-nv = 50
+nv = 100
 seed = 0
 particle_radius = 0.5
 asperity_rads = [0.01, 0.1, 0.4]
@@ -152,27 +152,29 @@ asperity_pos *= particle_radius
 for asperity_radius in asperity_rads:
     asperity_radii = jnp.ones(asperity_pos.shape[0]) * asperity_radius
 
-    mesh_subdivisions = list(range(6))
+    mesh_subdivisions = list(range(8))
     n_samples_list = [10_000, 100_000, 1_000_000]
     vols = []
     Is = []
-    # for ms in tqdm(mesh_subdivisions):
-    for n_samples in tqdm(n_samples_list):
-        # mesh = generate_mesh(
-        #     asperity_positions=asperity_pos,
-        #     asperity_radii=asperity_radii,
-        #     subdivisions=ms,
-        # )
-        # pos_c, q, inertia_dimensionless, volume = compute_mesh_properties(mesh, mass=1.0)
-        pos_c, q, inertia_dimensionless, volume = compute_clump_properties_from_spheres(asperity_pos, asperity_radii, n_samples)
+    for ms in tqdm(mesh_subdivisions):
+    # for n_samples in tqdm(n_samples_list):
+        mesh = generate_mesh(
+            asperity_positions=asperity_pos,
+            asperity_radii=asperity_radii,
+            subdivisions=ms,
+        )
+        pos_c, q, inertia_dimensionless, volume = compute_mesh_properties(mesh, mass=1.0)
+        # pos_c, q, inertia_dimensionless, volume = compute_clump_properties_from_spheres(asperity_pos, asperity_radii, n_samples)
         vols.append(volume)
         Is.append(inertia_dimensionless)
     vols = np.array(vols)
     Is = np.array(Is)
 
-    # plt.plot(mesh_subdivisions, 1 - vols / vols[-1])
-    plt.plot(n_samples_list, abs(1 - vols / vols[-1]))
+    plt.plot(mesh_subdivisions, 1 - vols / vols[-1])
+    # plt.plot(n_samples_list, abs(1 - vols / vols[-1]))
     print(vols)
 plt.yscale('log')
+plt.xlabel(r'$N_{sub}$', fontsize=16)
+plt.ylabel(r'$|1 - V(n) / V(7)|$', fontsize=16)
 plt.tight_layout()
 plt.savefig('figures/mesh-validation-vols.png', dpi=600)
