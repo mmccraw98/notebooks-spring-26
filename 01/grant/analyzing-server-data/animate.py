@@ -84,7 +84,8 @@ for ptype, eb in zip(['floppy', 'hard'], [None, 1.0]):
         rad = np.array([data['rad'] for _ in range(n_frames)])
         dpid = np.array([data['dp_ids'] for _ in range(n_frames)])
 
-        run_length = 5  # seconds
+        run_length = 0.1  # seconds
+        print(int(n_frames / run_length))
 
         animate_given_data(
             pos,
@@ -93,5 +94,5 @@ for ptype, eb in zip(['floppy', 'hard'], [None, 1.0]):
             box_size,
             os.path.join('new-animations', f"{ptype}-{data['phi_true'][0]}-relaxed-{data['too_long']}.gif"),
             frames=n_frames,
-            fps=n_frames / run_length,
+            fps=int(n_frames / run_length),
         )

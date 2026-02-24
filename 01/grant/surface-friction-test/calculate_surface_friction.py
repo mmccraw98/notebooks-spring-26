@@ -56,7 +56,7 @@ def create_state_and_system(
     particle_radii,
     vertex_counts,
     asperity_radius,
-    core_type,
+    body_type,
     mesh_type
 ):
     state, box_size = generate_ga_clump_state(
@@ -65,7 +65,7 @@ def create_state_and_system(
         phi=0.001,
         dim=3,
         asperity_radius=asperity_radius,
-        core_type=core_type,
+        body_type=body_type,
         mesh_type=mesh_type,
         use_random_orientations=False,
     )
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     separation_tolerance = 1e-10
     particle_radii = np.array([particle_radius, particle_radius])
     vertex_counts = np.array([nv, nv])
-    core_type = "true"
+    body_type = "true-solid"
 
     # set guessed bounds
     scale = 1.1
@@ -255,7 +255,7 @@ if __name__ == "__main__":
         particle_radii=particle_radii,
         vertex_counts=vertex_counts,
         asperity_radius=asperity_radius,
-        core_type=core_type,
+        body_type=body_type,
         mesh_type=mesh_type,
     )
 
