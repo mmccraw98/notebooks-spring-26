@@ -12,20 +12,21 @@ subdivisions = 6
 n_theta = 10
 n_phi = 10
 batch_size = 10_000
-N_steps = 0
 
-for nv in [20, 50]:
-    for asperity_radius in np.linspace(0.01, particle_radius, n_asperity_points + 1)[:-1]:
-        cmd = [
-            sys.executable, "calculate_surface_friction.py",
-            "--output_directory", os.path.join(root, N_steps, str(nv), str(uuid4())),
-            "--nv", str(nv),
-            "--particle_radius", str(particle_radius),
-            "--asperity_radius", str(asperity_radius),
-            "--n_theta", str(n_theta),
-            "--n_phi", str(n_phi),
-            "--batch_size", str(batch_size),
-            "--subdivisions", str(subdivisions),
-            "--N_steps", N_steps,
-        ]
-        subprocess.run(cmd, check=True)
+for n_repeats in range(20):
+    for N_steps in [0, 100, 10_000]:
+        for nv in [20, 50]:
+            for asperity_radius in np.linspace(0.01, particle_radius, n_asperity_points + 1)[:-1]:
+                cmd = [
+                    sys.executable, "calculate_surface_friction_thomson_particles.py",
+                    "--output_directory", os.path.join(root, str(N_steps), str(nv), str(uuid4())),
+                    "--nv", str(nv),
+                    "--particle_radius", str(particle_radius),
+                    "--asperity_radius", str(asperity_radius),
+                    "--n_theta", str(n_theta),
+                    "--n_phi", str(n_phi),
+                    "--batch_size", str(batch_size),
+                    "--subdivisions", str(subdivisions),
+                    "--N_steps", str(N_steps),
+                ]
+                subprocess.run(cmd, check=True)

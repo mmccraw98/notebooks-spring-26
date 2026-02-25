@@ -323,7 +323,7 @@ if __name__ == "__main__":
     separation_tolerance = 1e-10
     particle_radii = np.array([particle_radius, particle_radius])
     vertex_counts = np.array([nv, nv])
-    core_type = "true"
+    body_type = "true-solid"
 
     # set guessed bounds
     scale = 1.1
@@ -342,7 +342,7 @@ if __name__ == "__main__":
         particle_radii=particle_radii,
         vertex_counts=vertex_counts,
         asperity_radius=asperity_radius,
-        core_type=core_type,
+        body_type=body_type,
         N_steps=N_steps,
     )
 
@@ -373,8 +373,8 @@ if __name__ == "__main__":
     phi_surface = jnp.arctan2(directions[:, 1], directions[:, 0])
 
     # Sweep over tracer base orientations
-    theta_bases = np.linspace(0, np.pi / 2, n_theta, endpoint=True)
-    phi_bases = np.linspace(0, np.pi / 2, n_phi, endpoint=True)
+    theta_bases = np.linspace(0, np.pi, n_theta, endpoint=True)
+    phi_bases = np.linspace(0, np.pi, n_phi, endpoint=True)
 
     for tracer_theta in tqdm(theta_bases, desc='theta_base'):
         for tracer_phi in tqdm(phi_bases, desc='phi_base', leave=False):
