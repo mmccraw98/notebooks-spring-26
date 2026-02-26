@@ -29,7 +29,7 @@ system.force_manager = ForceManager.create(
 )
 
 
-# non bonded virial
+# bonded virial
 N_dps = int(jnp.max(state.deformable_ID) + 1)
 pos_dp = get_com_pos(state, N_dps)[state.deformable_ID]
 bonded_force, _ = dp_force(state.pos, state, system)
@@ -37,7 +37,7 @@ pos_rel = state.pos -  pos_dp
 bonded_virial = jnp.sum(pos_rel[:, :, None] * bonded_force[:, None, :], axis=0)
 
 
-# bonded virial
+# non-bonded virial
 cutoff = jnp.max(state.rad) * 3
 max_neighbors = 100
 state, system, nl, overflow = system.collider.create_neighbor_list(state, system, cutoff, max_neighbors)

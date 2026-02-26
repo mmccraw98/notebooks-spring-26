@@ -29,8 +29,8 @@ system.force_manager = ForceManager.create(
 )
 
 
-n_dynamics_steps = 100_000
-save_stride = 100
+n_dynamics_steps = 10_000
+save_stride = 1
 n_snapshots = n_dynamics_steps // save_stride
 state, system, (state_traj, system_traj) = system.trajectory_rollout(
     state, system, n=n_snapshots, stride=save_stride
