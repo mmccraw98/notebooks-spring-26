@@ -16,8 +16,6 @@ root = os.path.join('data', '010_10')
 state = jd.utils.h5.load(os.path.join(root, 'state.h5'))
 system = jd.utils.h5.load(os.path.join(root, 'system.h5'))
 
-state, system = system.collider.compute_force(state, system)  # force the neighbor list to  update
-
 n_steps = 100
 save_stride = 10
 cutoff = jnp.max(state.rad) * 3
@@ -31,9 +29,73 @@ n_phi_steps = 20
 n_temperature_steps = 20
 
 phi = jd.utils.packingUtils.compute_packing_fraction(state, system)
+print(phi)
+
+# iteratively decompress, heat up, run dynamics, and re-jam to try to get to a more dense state
+
+for i in range(10):
+    temp = 1e-5
+    state, system = jd.utils.packingUtils.scale_to_packing_fraction(state, system, phi - 1e-2)
+    state = jd.utils.thermal.set_temperature(state, temp, can_rotate, subtract_drift, np.random.randint(0, 1e9))
+    state, system = system.step(state, system, n=100_000)
+
+    mats = [jd.Material.create("elastic", young=e_int, poisson=0.5, density=1.0)]
+    matcher = jd.MaterialMatchmaker.create("harmonic")
+    mat_table = jd.MaterialTable.from_materials(mats, matcher=matcher)
+    base_system = jd.System.create(
+        state_shape=state.shape,
+        dt=dt,
+        linear_integrator_type="linearfire",
+        rotation_integrator_type="rotationfire",
+        domain_type="periodic",
+        force_model_type="spring",
+        collider_type="neighborlist",
+        collider_kw=dict(
+            state=state,
+            cutoff=2.0 * jnp.max(state.rad),
+            skin=0.05,
+            safety_factor=5.0,
+        ),
+        mat_table=mat_table,
+        domain_kw=dict(
+            box_size=system.domain.box_size,
+        ),
+    )
+
+    state, system, final_pf, final_pe = jd.utils.jamming.bisection_jam(state, system)
+    phi = jd.utils.packingUtils.compute_packing_fraction(state, system)
+    print(phi)
+
+    mats = [jd.Material.create("elastic", young=e_int, poisson=0.5, density=1.0)]
+    matcher = jd.MaterialMatchmaker.create("harmonic")
+    mat_table = jd.MaterialTable.from_materials(mats, matcher=matcher)
+    base_system = jd.System.create(
+        state_shape=state.shape,
+        dt=dt,
+        linear_integrator_type="verlet",
+        rotation_integrator_type="verletspiral",
+        domain_type="periodic",
+        force_model_type="spring",
+        collider_type="neighborlist",
+        collider_kw=dict(
+            state=state,
+            cutoff=2.0 * jnp.max(state.rad),
+            skin=0.05,
+            safety_factor=5.0,
+        ),
+        mat_table=mat_table,
+        domain_kw=dict(
+            box_size=system.domain.box_size,
+        ),
+    )
+
+exit()
+
+phi = jd.utils.packingUtils.compute_packing_fraction(state, system)
 temperatures = jnp.linspace(1e-5, 2e-5, n_temperature_steps)
 delta_phis = - jnp.logspace(-4, jnp.log10(phi / 2), n_phi_steps)
 
+state, system = system.collider.compute_force(state, system)  # force the neighbor list to  update
 state, system, rattler_ids, non_rattler_ids = get_clump_rattler_ids(state, system, cutoff, max_neighbors)
 base_state = remove_rattlers_from_state(state, rattler_ids)
 

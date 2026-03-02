@@ -25,8 +25,13 @@ if __name__ == "__main__":
             system=system
         )
 
-        # # on all subsequent runs use:
-        # state, system, _, _, pe, run_root = step(
-        #     cfg,
-        #     input_path=run_root  # begin with the data from the prior run
-        # )
+        phi = jd.utils.packingUtils.compute_packing_fraction(state, system)
+        while phi < 1.0:
+            # on all subsequent runs use:
+            state, system, _, _, pe, run_root = step(
+                cfg,
+                input_path=run_root  # begin with the data from the prior run
+            )
+            phi = jd.utils.packingUtils.compute_packing_fraction(state, system)
+
+        break

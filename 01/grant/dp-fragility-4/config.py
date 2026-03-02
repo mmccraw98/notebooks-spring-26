@@ -19,7 +19,7 @@ class Config:
     dt: float = 1e-3
     can_rotate: bool = False
     subtract_drift: bool = True
-    delta_phi: float = 1e-2
+    delta_phi: float = 5e-2
     target_temperature: float = 1e-5
     min_save_decade: int = 1_000
     reset_save_decade: int = 100_000

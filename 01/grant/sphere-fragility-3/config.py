@@ -6,13 +6,13 @@ class Config:
     dim: int = 2
     N: int = 1000
     mass: float = 1.0
-    n_dynamics_steps: int = 1_000_000
+    n_dynamics_steps: int = 100_000
     phi_target: float = 0.9
     e_int: float = 1.0
     dt: float = 1e-2
     can_rotate: bool = False
     subtract_drift: bool = True
-    delta_phi: float = 1e-2
+    delta_phi: float = 5e-2
     target_temperature: float = 1e-5
     min_save_decade: int = 1000
     force_model: str = "spring"  # wca_shifted

@@ -13,15 +13,19 @@ if __name__ == "__main__":
     for which, cfg in zip(
         # ['floppy', 'hard', 'soft', 'med'],
         # [config2d_floppy, config2d_hard, config2d_soft, config2d_med],
-        ['hard'],
-        [config2d_hard],
+        ['med'],
+        [config2d_med],
     ):
         data_root = f'/home/mmccraw/dev/data/26-01-01/grant/dp-fragilitiy/version-4/{which}'
         if not os.path.exists(data_root):
             os.makedirs(data_root)
         
         state, system, dp = create_ga_dps_2d(cfg)
-        step(
+
+        phi = jd.utils.packingUtils.compute_packing_fraction(state, system)
+        print(phi)
+        
+        state, system, dp, pe, run_root = step(
             cfg,
             input_path=data_root,  # use input path as the data root on initialization
             state=state,  # define state and system on initialization
@@ -30,16 +34,12 @@ if __name__ == "__main__":
         )
         jax.clear_caches()
 
-        # data_root = f'/home/mmccraw/dev/data/26-01-01/grant/dp-fragilitiy/version-4-old/{which}'
-        # if not os.path.exists(data_root):
-        #     os.makedirs(data_root)
+        while phi < 0.95:
+            phi = jd.utils.packingUtils.compute_packing_fraction(state, system)
+            print(phi)
 
-        # state, system, dp = create_ga_dps_2d_old(cfg)
-        # step_old(
-        #     cfg,
-        #     input_path=data_root,  # use input path as the data root on initialization
-        #     state=state,  # define state and system on initialization
-        #     system=system,
-        #     dp=dp,
-        # )
-        # jax.clear_caches()
+            state, system, dp, pe, run_root = step(
+                cfg,
+                input_path=run_root,
+            )
+            jax.clear_caches()
