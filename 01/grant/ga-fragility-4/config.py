@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 class Config:
     phi: float = 0.6
     dim: int = 2
-    N: int = 100
-    min_nv: int = 20
+    N: int = 1000
+    min_nv: int = 5
     mu_eff: float = 0.1
     aspect_ratio: float = 1.0
     mass: float = 1.0
