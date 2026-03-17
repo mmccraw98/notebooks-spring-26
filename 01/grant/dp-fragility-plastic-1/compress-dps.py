@@ -23,17 +23,17 @@ dt = 1e-3
 e_int = 1.0
 can_rotate = False
 subtract_drift = True
-temp = 1e-3
+temp = 1e-4
 
 cfg = JCFG(
     seed=np.random.randint(0, 1e9),
     delta_phi=1e-2,
     target_temperature=temp,
-    n_steps=1_000_000,
+    n_steps=10_000,
     min_save_decade=100,
 )
 
-data_root = f'/home/mmccraw/dev/data/26-01-01/grant/dp-fragilitiy/version-5/compression-4/{name}'
+data_root = f'/home/mmccraw/dev/data/26-01-01/grant/dp-plastic-fragilitiy/version-1/'
 
 state, system = create_bidisperse_ga_dps_2d(
     N_dps,
@@ -65,26 +65,52 @@ stride = cfg.min_save_decade
 n = cfg.n_steps // stride
 save_strides = jnp.full(n, stride)
 
-while phi < 1.0:
-    state, system, mean_pe, _ = run_1(
-        state,
-        system,
-        data_root,
-        cfg,
-        save_strides=save_strides,
-        compress=True,
-        save_fn=None,
-        save_all=False
+def save_fn(st, sy):
+    # perm = jnp.empty_like(st.unique_id)
+    # perm = perm.at[st.unique_id].set(jnp.arange(st.unique_id.shape[0], dtype=st.unique_id.dtype))
+    return dict(
+        step_count=sy.step_count,
+        # pos=st.pos[perm],
+        # vel=st.vel[perm],
+        pe=jd.utils.thermal.compute_potential_energy(st, sy),
+        ke=jd.utils.thermal.compute_translational_kinetic_energy(st),
     )
-    state, system = system.step(state, system, n=500_000)
-    state, system, mean_pe, _ = run_1(
-        state,
-        system,
-        data_root,
-        cfg,
-        save_strides=save_strides,
-        compress=False,
-        save_fn=None,
-        save_all=False
-    )
-    phi = jd.utils.packingUtils.compute_packing_fraction(state, system)
+
+rollout_kwargs = dict(strides=save_strides, save_fn=save_fn)
+
+state, system, logged = jd.System.trajectory_rollout(
+    state, system, **rollout_kwargs,
+)
+
+print(logged['ke'])
+print(logged['pe'])
+
+import matplotlib.pyplot as plt
+plt.plot(logged['pe'])
+plt.plot(logged['ke'])
+plt.plot(logged['ke'] + logged['pe'])
+plt.savefig('energies.png')
+
+# while phi < 1.0:
+#     state, system, mean_pe, _ = run_1(
+#         state,
+#         system,
+#         data_root,
+#         cfg,
+#         save_strides=save_strides,
+#         compress=True,
+#         save_fn=None,
+#         save_all=False
+#     )
+#     state, system = system.step(state, system, n=500_000)
+#     state, system, mean_pe, _ = run_1(
+#         state,
+#         system,
+#         data_root,
+#         cfg,
+#         save_strides=save_strides,
+#         compress=False,
+#         save_fn=None,
+#         save_all=False
+#     )
+#     phi = jd.utils.packingUtils.compute_packing_fraction(state, system)
