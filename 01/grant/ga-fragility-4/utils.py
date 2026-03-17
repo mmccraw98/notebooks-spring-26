@@ -296,7 +296,7 @@ def create_ga_clumps_2d(cfg):
         cfg.phi,
         dim,
         asperity_radius,
-        body_type='solid',
+        body_type='true-solid',
         aspect_ratio=cfg.aspect_ratio,
         use_uniform_mesh=True,
         mass=cfg.mass,

@@ -117,6 +117,20 @@ H = hessian.transpose(2, 0, 3, 1).reshape(N_c * df, N_c * df)
 M = np.diag(np.concatenate([clump_mass for _ in range(state.dim)] + [clump_inertia.ravel()]))
 vals, vecs = sp.linalg.eigh(H, M)
 
+
+
+
+# new way
+# pos_c: N_c
+# q: N_c
+# pair_ids: N_pairs for N_v spheres
+def compute_potential(pos_c, q):
+    # probably have to pass q as an array, index into it, then cast it as a quaternion object first, but anyways:
+    pos = pos_c[state.clump_id] + q[state.clump_id].rotate(q[state.clump_id], pos_p)
+    # ...
+
+
+
 assert vals_manual.size == vals.size
 assert jnp.all(jnp.isclose(vals_manual, vals))
 

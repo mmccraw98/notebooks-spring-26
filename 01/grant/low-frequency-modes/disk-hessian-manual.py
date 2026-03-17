@@ -73,7 +73,26 @@ H = hessian.transpose(2, 0, 3, 1).reshape(state.N * state.dim, state.N * state.d
 M = np.diag(np.concatenate([state.mass for _ in range(state.dim)]))
 vals, vecs = sp.linalg.eigh(H, M)
 
+# new way
+state, system, pair_ids, _ = jd.utils.contacts.get_pair_forces_and_ids(
+    state,
+    system,
+)
+valid = (pair_ids[:, 1] != -1) & (pair_ids[:, 0] != pair_ids[:, 1])
+pair_ids = pair_ids[valid]
+n_pairs = pair_ids.shape[0]
+def total_energy(pos):
+    energies = jax.vmap(lambda k: system.force_model.energy(
+        pair_ids[k, 0], pair_ids[k, 1], pos, state, system
+    ))(jnp.arange(n_pairs))
+    return jnp.sum(energies)
+H_new = jax.hessian(total_energy)(state.pos)
+H_new = H_new.transpose(0, 1, 2, 3).reshape(state.N * state.dim, state.N * state.dim)
+M = np.diag(np.concatenate([state.mass for _ in range(state.dim)]))
+vals_new, vecs_new = sp.linalg.eigh(H_new, M)
+
 assert vals_manual.size == vals.size
+assert vals_new.size == vals.size
 assert jnp.all(jnp.isclose(vals_manual, vals))
 
 print('All tests passed')
