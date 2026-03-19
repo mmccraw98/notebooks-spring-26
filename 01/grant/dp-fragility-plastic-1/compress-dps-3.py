@@ -6,14 +6,18 @@ import os
 import numpy as np
 from tqdm import tqdm
 
+from dataclasses import replace
+
 from jaxdem_scripts.ga_utils import create_bidisperse_ga_dps_2d
 from jaxdem_scripts.compression_loop_dp import run_1, JobConfig as JCFG
+from jaxdem.integrators import Langevin
+from jaxdem.colliders import Naive
 
 e_b = 1e-1
 # e_m = 1e-1  # length
 e_l = 1e1  # length
 e_c = 1e2  # area
-tau_s = 10.0
+tau_s = None
 
 # TAU_S IS SET TO NONE IF E_L IS NOT DEFINED!  MAKES SENSE THAT YOU NEED E_L HERE, BUT ISN'T IT NOT NORMALIZED, UNLIKE E_M?
 
@@ -28,13 +32,13 @@ tau_s = 10.0
 size_ratios=(1.0, 1.0)
 
 N_dps = 10
-mu_eff = 0.2
-min_nv = 20
+mu_eff = 0.1
+min_nv = 30
 phi = 0.8
 aspect_ratio = 1.0
 dp_mass = 1.0
-dt = 1e-3
-e_int = 1.0
+dt = 1e-4
+e_int = 10.0
 can_rotate = False
 subtract_drift = True
 temp = 1e-3
@@ -43,7 +47,7 @@ cfg = JCFG(
     seed=np.random.randint(0, 1e9),
     delta_phi=1e-2,
     target_temperature=temp,
-    n_steps=1_000_000,
+    n_steps=1_000_00,
     min_save_decade=1000,
 )
 
@@ -73,6 +77,16 @@ state = jd.utils.thermal.set_temperature(
     can_rotate,
     subtract_drift,
     np.random.randint(0, 1e9)
+)
+
+system = replace(
+    system,
+    linear_integrator=Langevin(
+        gamma=jnp.asarray(1.0),
+        temperature=jnp.asarray(temp),
+        k_B=jnp.asarray(1.0)
+    ),
+    collider=Naive(),
 )
 
 length = 1000
@@ -106,7 +120,7 @@ def save_fn(st, sy):
         ke=jd.utils.thermal.compute_translational_kinetic_energy(st),
     )
 
-rollout_kwargs = dict(strides=save_strides, save_fn=save_fn, target_temperature=temp)
+rollout_kwargs = dict(strides=save_strides, save_fn=save_fn)
 
 state, system, logged = jd.System.trajectory_rollout(
     state, system, **rollout_kwargs,
@@ -122,7 +136,7 @@ plt.plot(logged['step_count'] * dt, logged['pe'], label='PE')
 plt.plot(logged['step_count'] * dt, logged['ke'], label='KE')
 plt.plot(logged['step_count'] * dt, logged['ke'] + logged['pe'], label='TE')
 plt.legend()
-plt.axvline(tau_s, c='k', ls='--', alpha=0.5, zorder=0)
+# plt.axvline(tau_s, c='k', ls='--', alpha=0.5, zorder=0)
 plt.savefig('energies.png')
 
 from anim_utils import animate

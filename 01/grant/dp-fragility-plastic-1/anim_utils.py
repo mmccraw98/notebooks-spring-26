@@ -8,8 +8,8 @@ def render(state, system, path, id_name='clump_ID'):
         f.create_dataset("rad", data=np.asarray(state.rad))
         f.create_dataset("ID",  data=np.asarray(getattr(state, id_name)))
         f.create_dataset("box_size", data=np.asarray(system.domain.box_size))
-    run_render = "/home/mmccraw/dev/analysis/fall-25/12/testing-jaxdem-scripts/rigid-particle-creation/run_render.sh"
-    # run_render = "/Users/marshallmccraw/Projects/yale/analysis/fall-25/12/testing-jaxdem-scripts/rigid-particle-creation/run_render.sh"
+    # run_render = "/home/mmccraw/dev/analysis/fall-25/12/testing-jaxdem-scripts/rigid-particle-creation/run_render.sh"
+    run_render = "/Users/marshallmccraw/Projects/yale/analysis/fall-25/12/testing-jaxdem-scripts/rigid-particle-creation/run_render.sh"
     subprocess.run([
         str(run_render),
         "config.h5",
@@ -28,8 +28,8 @@ def animate(pos, rad, pid, box_size, path, frames=100, fps=15):
         f.create_dataset("ID", data=pid)
         f.create_dataset("box_size", data=box_size)
 
-    run_animation = "/home/mmccraw/dev/analysis/fall-25/12/testing-jaxdem-scripts/animation/run_animation.sh"
-    # run_animation = "/Users/marshallmccraw/Projects/yale/analysis/fall-25/12/testing-jaxdem-scripts/animation/run_animation.sh"
+    # run_animation = "/home/mmccraw/dev/analysis/fall-25/12/testing-jaxdem-scripts/animation/run_animation.sh"
+    run_animation = "/Users/marshallmccraw/Projects/yale/analysis/fall-25/12/testing-jaxdem-scripts/animation/run_animation.sh"
     subprocess.run(
         [
             str(run_animation),
